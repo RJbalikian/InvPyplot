@@ -43,24 +43,25 @@ def autoplot(inv_file, iteration, verbose=False,  **resinv_plot_kwargs):
     if type(iteration) is int:
         iteration = [iteration]
     elif iteration.lower() in allIterList:
-        iteration = inv_dict['iterationDF'].index.tolist()
-    
+        iteration = inv_dict['iterationDF'].Iteration.tolist()
+
     iterIndList = []
     iterNoList = []
     figList = []
     axList = []
 
     for i in iteration:
-        iterNo = inv_dict['iterationDF'].loc[i, 'Iteration']
+        iterNo = i
         inv_dict['iterationNo'] = iterNo
-        inv_dict['iterationInd'] = i
+        iterInd = inv_dict['iterationDF'][inv_dict['iterationDF'].Iteration==i].index.tolist()[0]
+        inv_dict['iterationInd'] = iterInd
         inv_dict = read_inv_data_other(inv_file=inv_file, inv_dict=inv_dict, iteration_no=iterNo)
         inv_dict = read_error_data(inv_file=inv_file, inv_dict=inv_dict)
         inv_dict = get_resistivitiy_model(inv_file=inv_file, inv_dict=inv_dict)
         fig, ax = resinv_plot(inv_dict=inv_dict, **resinv_plot_kwargs)
 
         iterIndList.append(i)
-        iterNoList.append(inv_dict['iterationDF'].loc[i, 'Iteration'])
+        iterNoList.append(inv_dict['iterationDF'].loc[iterInd, 'Iteration'])
         figList.append(fig)
         axList.append(ax)
 
@@ -665,7 +666,7 @@ def plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax,colMap='jet',cMin=None,cMax=
 
     return fig, ax
 
-def resinv_plot(inv_dict,colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel='Resistivity (ohm-m)', cBarOrientation='horizontal', cMin=None, cMax=None, griddedFt=[False,False], griddedM=[False,False], title=None, normType='linear', primaryUnit='m', showPoints=False,whichTicks='major', figsize=None, dpi=None, reverse=False, tight_layout=True, savefig=False, saveformat='png'):
+def resinv_plot(inv_dict,colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel='Resistivity (ohm-m)', cBarOrientation='horizontal', cMin=None, cMax=None, griddedFt=[False,False], griddedM=[False,False], title=None, normType='log', primaryUnit='m', showPoints=False,whichTicks='major', figsize=None, dpi=None, reverse=False, tight_layout=True, savefig=False, saveformat='png'):
     """Function to pull everything together and plot it nicely.
 
     Parameters
@@ -690,8 +691,8 @@ def resinv_plot(inv_dict,colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel=
         Whether to show gridlines on the meter tickes, first position is x, second posistion is y, by default [False,False]
     title : str, optional
         String to show as the title, if desired to set manually, by default None, which shows the filename as the title
-    normType : str {'linear', 'log'}, optional
-        Normalization type, by default 'linear'. Determines whether matplotlib.colors.LogNorm or matplotlib.colors.Normalize is used for colormap.
+    normType : str {'log', 'linear'}, optional
+        Normalization type, by default 'log'. Determines whether matplotlib.colors.LogNorm or matplotlib.colors.Normalize is used for colormap.
     primaryUnit : str {'m', 'ft'}, optional
         Whether to display meters or feet as primary unit (this determines which unit is larger on the axis and is on the left and top), by default 'm'
     showPoints : bool, optional
