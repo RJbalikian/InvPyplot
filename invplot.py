@@ -10,6 +10,67 @@ import ipywidgets as widgets
 import scipy.interpolate
 import matplotlib
 
+def autoplot(inv_file, iteration, verbose=False,  **resinv_plot_kwargs):
+    """Function to run all intermedaite functions and resinv_plot to simply read and plot everything in one call.
+
+    Parameters
+    ----------
+    inv_file : str or pathlib.PurePath object
+        Filepath to .inv file of interest. The .inv file should be one generated from Res2DInv.
+    iteration : int or list or either str {':', 'all'}
+        Integer or list of integers indicating which iteration of the .inv result to use for plotting. If list, all will be plotted separately.
+        If ':' or 'all', will plot all iterations successively.
+    verbose : bool, optional
+        Whether to print results out to terminal along the way, by default False
+    **resinv_plot_kwargs
+        Other keyword arguments may be read into autoplot. These are read in as **kwargs to the resinv_plot function. See documentation for resinv_plot for available parameters.
+
+    Returns
+    -------
+    inv_dict : dict
+        Dictionary containing all input parameters and data generated along the way, including the output figures and axes
+
+    """
+    if isinstance(inv_file, pathlib.PurePath):
+        pass
+    else:
+        inv_file = pathlib.Path(inv_file)
+
+    inv_dict = ingest_inv(inv_file, verbose=False, show_iterations=False)
+    inv_dict = read_inv_data(inv_file=inv_file, inv_dict=inv_dict)
+
+    allIterList = [':', 'all']
+    if type(iteration) is int:
+        iteration = [iteration]
+    elif iteration.lower() in allIterList:
+        iteration = inv_dict['iterationDF'].index.tolist()
+    
+    iterIndList = []
+    iterNoList = []
+    figList = []
+    axList = []
+
+    for i in iteration:
+        iterNo = inv_dict['iterationDF'].loc[i, 'Iteration']
+        inv_dict['iterationNo'] = iterNo
+        inv_dict['iterationInd'] = i
+        inv_dict = read_inv_data_other(inv_file=inv_file, inv_dict=inv_dict, iteration_no=iterNo)
+        inv_dict = read_error_data(inv_file=inv_file, inv_dict=inv_dict)
+        inv_dict = get_resistivitiy_model(inv_file=inv_file, inv_dict=inv_dict)
+        fig, ax = resinv_plot(inv_dict=inv_dict, **resinv_plot_kwargs)
+
+        iterIndList.append(i)
+        iterNoList.append(inv_dict['iterationDF'].loc[i, 'Iteration'])
+        figList.append(fig)
+        axList.append(ax)
+
+    inv_dict['iterationNo'] = iterIndList
+    inv_dict['iterationInd'] = iterNoList
+    inv_dict['fig'] = figList
+    inv_dict['ax'] = axList
+    
+    return inv_dict
+
 #Function to ingest inv file and find key information for later
 def ingest_inv(inv_file, verbose=True, show_iterations=True):
     """Function to ingest inversion file and get key points (row numbers) in the file
@@ -406,7 +467,7 @@ def label_plot(fig, ax, gridM, gridFt, whichTicks, pUnit, pUnitXLocs, pUnitYLocs
     #matplotlib.rc('text', usetex='false')   
     #fontName = {'fontname':'Helvetica'}
     
-    #plt.title(t,**fontName)
+    plt.title(t)
     ax.set_title(t, fontsize=20)
     ax.set_xlabel('Distance ['+sUnit+']', fontsize = 12)
     ax.set_ylabel('Elevation ['+pUnit+']', fontsize = 14)
@@ -453,7 +514,7 @@ def label_plot(fig, ax, gridM, gridFt, whichTicks, pUnit, pUnitXLocs, pUnitYLocs
         if gridM[1]:
             ax3.grid(axis='y',alpha=0.5, c='k', which=whichTicks)
 
-def plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax,colMap='jet',cMin=None,cMax=None, gridFt=[False,False], gridM=[False,False], t='', primaryUnit='m', cBarFormat ='%3.0f',cBarLabel ='Resistivity (ohm-m)', showPoints=False, norm=0, whichTicks='major', reverse=False):
+def plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax,colMap='jet',cMin=None,cMax=None, gridFt=[False,False], gridM=[False,False], t='', primaryUnit='m', tight_layout=True, cBarOrient='vertical', cBarFormat ='%3.0f',cBarLabel ='Resistivity (ohm-m)', showPoints=False, norm=0, whichTicks='major', reverse=False):
     topoDF = inv_dict['topoDF']
     if cMin is None:
         cMin = inv_dict['resistModelDF']['Data'].min()
@@ -517,6 +578,7 @@ def plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax,colMap='jet',cMin=None,cMax=
     yLocs_FTinM = yLabelsFtEven / 3.2808399
 
     yLimsM = [ylocsM[1],maxz+3]
+    yLimsM = [minz,maxz+3]
     yLimsFt = [np.round(yLimsM[0]*3.2808399, 0), np.round(yLimsM[1]*3.2808399, 0)]
 
     ax.fill_between(topoDF['xDist'],topoDF['Elevation'],topoDF['Elevation']+10,color='w')
@@ -576,24 +638,86 @@ def plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax,colMap='jet',cMin=None,cMax=
         sUnitYLabels = yLabelsFtEven
         label_plot(fig, ax, gridM, gridFt, whichTicks, primaryUnit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims=xLimsM, yLims=yLimsM, t=t)
     
-    cbar = fig.colorbar(im, ax=ax,orientation='horizontal', aspect=50, extend='both',ticks=cbarTicks,format=cBarFormat)
-    cbar.ax.tick_params(labelsize=16)#set_ticks(cbarTicks)
-    cbar.set_label(label=cBarLabel, size=20)
+    if tight_layout:
+        fig.tight_layout()
+    else:
+        plt.subplots_adjust(top=0.99, bottom=0.01, left=0.01, right=0.99, 
+                    wspace=0, hspace=0)
+
+    if cBarOrient=='horizontal':
+        aspect=50
+    else:
+        aspect=25
+    cbar = fig.colorbar(im, ax=ax,orientation=cBarOrient, aspect=aspect, extend='both',ticks=cbarTicks,format=cBarFormat)
+    cbar.ax.tick_params(labelsize=12)#set_ticks(cbarTicks)
+    cbar.set_label(label=cBarLabel, size=16)
 
     ax_h, ax_w = ax.bbox.height, ax.bbox.width
     axRatio = ax_w/ax_h
     aspRatio = (xLimsM[1]-xLimsM[0])/(yLimsM[1]-yLimsM[0])
     vertExag = abs(round(aspRatio/axRatio, 1))
+    iterNo = inv_dict['iterationNo']
+    iterInd = inv_dict['iterationInd']
+    iterErr = inv_dict['iterationDF'].loc[iterInd, '%AbsError']
+    ax.annotate('Iteration {}\nRMS Error: {}%'.format(iterNo, iterErr),xy=(0.02,0.02),xycoords='subfigure fraction', ha='left', va='bottom')
     ax.annotate('Vert.Exag: '+str(vertExag)+'x',xy=(0.98,0.02),xycoords='subfigure fraction', ha='right', va='bottom')
-    #fig.tight_layout()
     fig.set_facecolor("w")
 
-    plt.show(fig)
     return fig, ax
 
-def resinv_plot(inv_dict,colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel ='Resistivity (ohm-m)', cMin=None, cMax=None, griddedFt=[False,False], griddedM=[False,False], title=None,normType='linear', primaryUnit='m', showPoints=False,whichTicks='major', reverse=False, savefig=False, saveformat='png'):
+def resinv_plot(inv_dict,colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel='Resistivity (ohm-m)', cBarOrientation='horizontal', cMin=None, cMax=None, griddedFt=[False,False], griddedM=[False,False], title=None, normType='linear', primaryUnit='m', showPoints=False,whichTicks='major', figsize=None, dpi=None, reverse=False, tight_layout=True, savefig=False, saveformat='png'):
+    """Function to pull everything together and plot it nicely.
+
+    Parameters
+    ----------
+    inv_dict : dict
+        Dictionary of inversion results generated from previous steps
+    colMap : str, optional
+        Colormap, any acceptable from matplotlib, by default 'nipy_spectral'
+    cBarFormat : str, optional
+        Format string for colorbar tick labels, by default '%3.0f'
+    cBarLabel : str, optional
+        Colorbar label, by default 'Resistivity (ohm-m)'
+    cBarOrientation : str {'horizonta', 'vertical'}, optional
+        Orientation of the colorbar, by default 'horizontal'
+    cMin : float, optional
+        Minimum of colorbar/colormap, by default None, which uses the minimum value of the dataset.
+    cMax : float, optional
+        Maximum of colorbar/colormap, by default None, which uses the maximum value of the dataset.
+    griddedFt : list, optional
+        Whether to show gridlines on the feet ticks, first position is x, second position is y, by default [False,False]
+    griddedM : list, optional
+        Whether to show gridlines on the meter tickes, first position is x, second posistion is y, by default [False,False]
+    title : str, optional
+        String to show as the title, if desired to set manually, by default None, which shows the filename as the title
+    normType : str {'linear', 'log'}, optional
+        Normalization type, by default 'linear'. Determines whether matplotlib.colors.LogNorm or matplotlib.colors.Normalize is used for colormap.
+    primaryUnit : str {'m', 'ft'}, optional
+        Whether to display meters or feet as primary unit (this determines which unit is larger on the axis and is on the left and top), by default 'm'
+    showPoints : bool, optional
+        Whether to show the datapoints used for interpolation, by default False
+    whichTicks : str {'major', 'minor', 'both'}, optional
+        If griddedFt or griddedM has any True, this determines whether major, minor, or both gridlines are used; by default 'major'.
+    figsize : tuple, optional
+        Tuple (width, height) of the figsize, read into plt.rcParams['figure.figsize'], by default None.
+    dpi : int or float, optional
+        Resolution (dots per square inch) of final figure, read into plt.rcParams['figure.dpi'], by default None.
+    reverse : bool, optional
+        Whether to display the data in reverse (flipped along x) of what is read into from .inv file, by default False
+    tight_layout : bool, optional
+        If true, calls fig.tight_layout(). Otherwise, tries to maximize space on the figure using plt.subplots_adjust, by default True
+    savefig : bool, optional
+        If False, will not save figure. Otherwise, calls plt.savefig() and the value of this parameter will be used as the output filepath, by default False.
+    saveformat : str, optional
+        Read into plt.savefig(format) paramater, by default 'png'.
+
+    Returns
+    -------
+    dict
+        Returns existing inv_dict input, but with added keys of ['fig'] and ['ax'] containing a list of the fig and ax objects (list, since multiple iterations can be done at once)
+    """
     if title is None:
-        title = inv_dict['inv_file_Path']
+        title = inv_dict['inv_file_Path'].stem
     
     if 'figure.dpi' not in list(inv_dict.keys()):
         inv_dict['figure.dpi'] = 250
@@ -603,9 +727,19 @@ def resinv_plot(inv_dict,colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel 
     x = inv_dict['resistModelDF']['x'].copy()
     z = inv_dict['resistModelDF']['zElev'].copy()
     v = inv_dict['resistModelDF']['Data'].copy()
-    plt.rcParams['figure.dpi'] = inv_dict['figure.dpi']
-    plt.rcParams['figure.figsize'] = inv_dict['figure.figsize']
 
+    if figsize is None:
+        plt.rcParams['figure.figsize'] = inv_dict['figure.figsize']
+    else:
+        inv_dict['figure.figsize'] = figsize
+        plt.rcParams['figure.figsize'] = figsize
+
+    if dpi is None:
+        plt.rcParams['figure.dpi'] = inv_dict['figure.dpi']
+    else:
+        inv_dict['figure.dpi'] = dpi
+        plt.rcParams['figure.dpi'] = dpi
+    
     maxXDist = max(np.float_(inv_dict['electrodes']))
 
     if cMin is None:
@@ -663,7 +797,6 @@ def resinv_plot(inv_dict,colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel 
 
     cbarTicks = np.arange(np.round(vmin, -1), np.ceil(vmax/10)*10,arStep)
 
-
     #im = self.axes.imshow(vi, vmin=vmin, vmax=vmax, origin='lower',
     im = axes.imshow(vi, origin='lower',
                 extent=[minx, maxx, minz, maxz],
@@ -671,9 +804,12 @@ def resinv_plot(inv_dict,colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel 
                 cmap=colMap,
                 norm = norm,
                 interpolation='spline36')
+    f, a = plot_pretty(inv_dict, x,z,v,fig=fig,im=im,ax=axes,colMap=colMap,cMin=cMin,cMax=cMax, 
+                       gridM=griddedM, gridFt=griddedFt, primaryUnit=primaryUnit, t=title, tight_layout=tight_layout,
+                       cbarTicks=cbarTicks,cBarFormat=cBarFormat,cBarLabel=cBarLabel,cBarOrient=cBarOrientation,
+                       showPoints=showPoints, norm=norm, whichTicks=whichTicks, reverse=reverse)
 
-    f, a = plot_pretty(inv_dict, x,z,v,fig=fig,im=im,ax=axes,colMap=colMap,cMin=cMin,cMax=cMax, gridM=griddedM, gridFt=griddedFt, primaryUnit=primaryUnit,cbarTicks=cbarTicks,cBarFormat=cBarFormat,showPoints=showPoints, norm=norm, whichTicks=whichTicks, reverse=reverse)
-
+    plt.show(fig)
     if savefig is not False:
         plt.savefig(savefig, format=saveformat, facecolor='white')
 

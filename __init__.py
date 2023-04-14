@@ -1,6 +1,8 @@
 import invplot
 
-from invplot import(ingest_inv,
+from invplot import(
+                autoplot,
+                ingest_inv,
                 read_inv_data,
                 read_inv_data_other,
                 read_error_data,
@@ -11,13 +13,17 @@ from invplot import(ingest_inv,
                 resinv_plot
                 )
 
-__all__ = ('ingest_inv',
-           'read_inv_data',
-           'read_inv_data_other',
-           'read_error_data',
-           'map_diff',
-           'get_resistivitiy_model',
-           'label_plot',
-           'plot_pretty',
-           'resinv_plot'
+__all__ = (
+            'autoplot',
+            'ingest_inv',
+            'read_inv_data',
+            'read_inv_data_other',
+            'read_error_data',
+            'map_diff',
+            'get_resistivitiy_model',
+            'label_plot',
+            'plot_pretty',
+            'resinv_plot'
             )
+
+__author__ = 'Riley Balikian'
