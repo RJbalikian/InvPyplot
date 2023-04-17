@@ -80,6 +80,10 @@ def ingest_inv(inv_file, verbose=True, show_iterations=True):
     ----------
     inv_file : str or pathlib.Path object
         The res2Dinv .inv file to work with.
+    verbose : bool, default=True
+        Whether to print results to terminal. Here, prints a pandas dataframe with information about iterations.
+    show_iterations : bool, default=True
+        Whether to show a matplotlib plot with the iteration on x axis and percent error on y axis.
 
     Returns
     -------
@@ -259,6 +263,26 @@ def ingest_inv(inv_file, verbose=True, show_iterations=True):
 
 #Input Data
 def read_inv_data(inv_file, inv_dict, startRow=9):
+    """Function to do initial read of .inv file. 
+    
+    This data does not change with iteration, as in later function. This function should be readafter ingest_inv, using the output from that as inv_dict.
+     
+    
+
+    Parameters
+    ----------
+    inv_file : str or pathlib.Path object
+        Filepath of .inv file
+    inv_dict : dict
+        Dictionary (output from ingest_inv) containing information about where data is located in the .inv file
+    startRow : int, optional
+        Where to start the read. This is, by default 9, which works well for .inv files tested.
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
     noDataPoints = inv_dict['noDataPoints']
     if isinstance(inv_file, pathlib.PurePath):
         pass
@@ -285,7 +309,27 @@ def read_inv_data(inv_file, inv_dict, startRow=9):
     inv_dict['resistDF']  = inDF
     return inv_dict
 
-def read_inv_data_other(inv_file, inv_dict, iteration_no=2):
+#Read other important inversion data
+def read_inv_data_other(inv_file, inv_dict, iteration_no=None):
+    """Function to read inversion data. 
+
+    Parameters
+    ----------
+    inv_file : str or pathlib.Path object
+        Filepath to .inv file of interest.
+    inv_dict : dict
+        Dictionary contianing outputs from ingest_inv and read_in_data.
+    iteration_no : int
+        Iteration number of interest.
+
+    Returns
+    -------
+    dict
+        Dictionary with more information appended to input dictionary
+    """
+    if iteration_no is None:
+        print('Please run read_inv_data_other again and specify iteration by setting iteration_no parameter equal to integer.')
+        return
     #Extract needed variables from dict
     iterationInd = inv_dict['iterationDF'][inv_dict['iterationDF'].Iteration==iteration_no].index.tolist()[0]
     inv_dict['iterationNo'] = iteration_no
@@ -355,6 +399,20 @@ def read_inv_data_other(inv_file, inv_dict, iteration_no=2):
 
 #Error Distribution
 def read_error_data(inv_file, inv_dict):
+    """Function to read data pertaining to model error
+
+    Parameters
+    ----------
+    inv_file : str or pathlib.Path object
+        Filepath to .inv file of interest
+    inv_dict : dict 
+        Dictionary containing cumulative output from ingest_inv, read_inv_data, and read_inv_data_other
+
+    Returns
+    -------
+    dict
+        Ouptput dictionary containing all information from read_error_data and previous functions.
+    """
     import csv
     noDataPoints = inv_dict['noDataPoints']
     startRow = inv_dict['errorDistRow']+1
@@ -419,7 +477,22 @@ def map_diff(xIn, x1,x2,y1,y2):
         yOut = y1 + totYDiff*percXDiff
     return yOut
 
+#Function to get resistivity model as pandas dataframe
 def get_resistivitiy_model(inv_file, inv_dict):
+    """Function to read the resistivity model, given the iteration of interest.
+
+    Parameters
+    ----------
+    inv_file : str or pathlib.Path object
+        Filepath to .inv file of interest
+    inv_dict : dict
+        Dictionary containing cumulative output from invest_inv, read_inv_data, read_inv_data_other, and read_error_data.
+
+    Returns
+    -------
+    dict
+        Dictionary with resistivity model contained in new key:value pair of inv_dict
+    """
     resistModelDF = pd.DataFrame()
     layerRowList= inv_dict['layerRowList']
     iterationInd= inv_dict['iterationInd']
@@ -462,7 +535,9 @@ def get_resistivitiy_model(inv_file, inv_dict):
     inv_dict['resistModelDF'] = resistModelDF
     return inv_dict
 
-def label_plot(fig, ax, gridM, gridFt, whichTicks, pUnit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims, yLims, t):
+#Helper function for __plot_pretty
+def __label_plot(fig, ax, gridM, gridFt, whichTicks, pUnit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims, yLims, t):
+    """See __plot_pretty, as all input parameters are derived from there"""
     #matplotlib.rc('font', family='sans-serif')   
     #matplotlib.rc('font', serif='Helvetica') 
     #matplotlib.rc('text', usetex='false')   
@@ -515,7 +590,10 @@ def label_plot(fig, ax, gridM, gridFt, whichTicks, pUnit, pUnitXLocs, pUnitYLocs
         if gridM[1]:
             ax3.grid(axis='y',alpha=0.5, c='k', which=whichTicks)
 
-def plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax,colMap='jet',cMin=None,cMax=None, gridFt=[False,False], gridM=[False,False], t='', primaryUnit='m', tight_layout=True, cBarOrient='vertical', cBarFormat ='%3.0f',cBarLabel ='Resistivity (ohm-m)', showPoints=False, norm=0, whichTicks='major', reverse=False):
+#Helper function for resinv_plot
+def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colMap='jet',cMin=None,cMax=None, gridFt=[False,False], gridM=[False,False], t='', primaryUnit='m', tight_layout=True, cBarOrient='vertical', cBarFormat ='%3.0f',cBarLabel ='Resistivity (ohm-m)', showPoints=False, norm=0, whichTicks='major', reverse=False):
+    """Helper function for resinv_plot, parameters derived from there."""
+
     topoDF = inv_dict['topoDF']
     if cMin is None:
         cMin = inv_dict['resistModelDF']['Data'].min()
@@ -609,7 +687,7 @@ def plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax,colMap='jet',cMin=None,cMax=
         sUnitYLocs = yLocs_FTinM
         sUnitXLabels = xLabelsFtEven
         sUnitYLabels = yLabelsFtEven
-        label_plot(fig, ax, gridM, gridFt, whichTicks, primaryUnit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims=xLimsM, yLims=yLimsM, t=t)
+        __label_plot(fig, ax, gridM, gridFt, whichTicks, primaryUnit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims=xLimsM, yLims=yLimsM, t=t)
     
     elif primaryUnit in ['f', 'ft', 'feet', 'foot', 'US']:
         pUnit = 'ft'
@@ -623,7 +701,7 @@ def plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax,colMap='jet',cMin=None,cMax=
         sUnitYLocs = ylocsM
         sUnitXLabels = xlabelsM
         sUnitYLabels = ylabelsM
-        label_plot(fig, ax, gridM, gridFt, whichTicks, primaryUnit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims=xLimsM, yLims=yLimsM, t=t)  
+        __label_plot(fig, ax, gridM, gridFt, whichTicks, primaryUnit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims=xLimsM, yLims=yLimsM, t=t)  
     
     else:
         pUnit = 'm'
@@ -637,7 +715,7 @@ def plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax,colMap='jet',cMin=None,cMax=
         sUnitYLocs = yLocs_FTinM
         sUnitXLabels = xLabelsFtEven
         sUnitYLabels = yLabelsFtEven
-        label_plot(fig, ax, gridM, gridFt, whichTicks, primaryUnit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims=xLimsM, yLims=yLimsM, t=t)
+        __label_plot(fig, ax, gridM, gridFt, whichTicks, primaryUnit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims=xLimsM, yLims=yLimsM, t=t)
     
     if tight_layout:
         fig.tight_layout()
@@ -668,6 +746,8 @@ def plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax,colMap='jet',cMin=None,cMax=
 
 def resinv_plot(inv_dict,colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel='Resistivity (ohm-m)', cBarOrientation='horizontal', cMin=None, cMax=None, griddedFt=[False,False], griddedM=[False,False], title=None, normType='log', primaryUnit='m', showPoints=False,whichTicks='major', figsize=None, dpi=None, reverse=False, tight_layout=True, savefig=False, saveformat='png'):
     """Function to pull everything together and plot it nicely.
+
+    It is recommended to use the autoplot function rather than resinv_plot directly, since doing so will also set up all the input dictionary keys/values correctly.
 
     Parameters
     ----------
@@ -805,7 +885,7 @@ def resinv_plot(inv_dict,colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel=
                 cmap=colMap,
                 norm = norm,
                 interpolation='spline36')
-    f, a = plot_pretty(inv_dict, x,z,v,fig=fig,im=im,ax=axes,colMap=colMap,cMin=cMin,cMax=cMax, 
+    f, a = __plot_pretty(inv_dict, x,z,v,fig=fig,im=im,ax=axes,colMap=colMap,cMin=cMin,cMax=cMax, 
                        gridM=griddedM, gridFt=griddedFt, primaryUnit=primaryUnit, t=title, tight_layout=tight_layout,
                        cbarTicks=cbarTicks,cBarFormat=cBarFormat,cBarLabel=cBarLabel,cBarOrient=cBarOrientation,
                        showPoints=showPoints, norm=norm, whichTicks=whichTicks, reverse=reverse)
