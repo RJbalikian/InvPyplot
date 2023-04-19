@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = 'InvPyplot'
-license = {text = "MIT License"}
+license = {text = "MIT"}
 version="1.0"
 description = "Python package enabling plotting of .inv files exported from Res2DInv in matplotlib"
 authors = 'Riley Balikian'
