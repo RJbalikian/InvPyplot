@@ -1,12 +1,24 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = 'InvPyplot'
-license = {text = "MIT"}
+dynamic = ["readme"]
+license = {file = "LICENSE"}
 version="1.0"
 description = "Python package enabling plotting of .inv files exported from Res2DInv in matplotlib"
-authors = 'Riley Balikian'
+authors = { name="Riley Balikian"}
 requires-python = ">=3.0"
 dependencies =  ["numpy", "pandas", "matplotlib", "scipy"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[tool.setuptools.dynamic]
+readme = {file = ["README.md"]}
+
+[project.urls]
+"Homepage" = "https://github.com/RJbalikian/InvPyplot"
