@@ -13,7 +13,7 @@ from invplot import(
                 resinv_plot
                 )
 
-__all__ = (
+__all__ = ( 'invplot',
             'autoplot',
             'ingest_inv',
             'read_inv_data',

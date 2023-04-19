@@ -6,7 +6,6 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import ipywidgets as widgets
 import scipy.interpolate
 import matplotlib
 
@@ -18,8 +17,7 @@ def autoplot(inv_file, iteration, verbose=False,  **resinv_plot_kwargs):
     inv_file : str or pathlib.PurePath object
         Filepath to .inv file of interest. The .inv file should be one generated from Res2DInv.
     iteration : int or list or either str {':', 'all'}
-        Integer or list of integers indicating which iteration of the .inv result to use for plotting. If list, all will be plotted separately.
-        If ':' or 'all', will plot all iterations successively.
+        Integer or list of integers indicating which iteration of the .inv result to use for plotting. If list, all will be plotted separately. If ':' or 'all', will plot all iterations successively.
     verbose : bool, optional
         Whether to print results out to terminal along the way, by default False
     **resinv_plot_kwargs

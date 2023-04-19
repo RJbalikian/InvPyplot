@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html class="writer-html4" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>invplot &mdash; invplot 0.1 documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            invplot
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">InvPyplot</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../InvPyplot.html">InvPyplot package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">invplot</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Module code</a></li>
+      <li class="breadcrumb-item active">invplot</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for invplot</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">import</span> <span class="nn">pathlib</span> 
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">scipy.interpolate</span>
+<span class="kn">import</span> <span class="nn">matplotlib</span>
+
+<div class="viewcode-block" id="autoplot"><a class="viewcode-back" href="../InvPyplot.html#invplot.autoplot">[docs]</a><span class="k">def</span> <span class="nf">autoplot</span><span class="p">(</span><span class="n">inv_file</span><span class="p">,</span> <span class="n">iteration</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>  <span class="o">**</span><span class="n">resinv_plot_kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Function to run all intermedaite functions and resinv_plot to simply read and plot everything in one call.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    inv_file : str or pathlib.PurePath object</span>
+<span class="sd">        Filepath to .inv file of interest. The .inv file should be one generated from Res2DInv.</span>
+<span class="sd">    iteration : int or list or either str {&#39;:&#39;, &#39;all&#39;}</span>
+<span class="sd">        Integer or list of integers indicating which iteration of the .inv result to use for plotting. If list, all will be plotted separately. If &#39;:&#39; or &#39;all&#39;, will plot all iterations successively.</span>
+<span class="sd">    verbose : bool, optional</span>
+<span class="sd">        Whether to print results out to terminal along the way, by default False</span>
+<span class="sd">    **resinv_plot_kwargs</span>
+<span class="sd">        Other keyword arguments may be read into autoplot. These are read in as **kwargs to the resinv_plot function. See documentation for resinv_plot for available parameters.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    inv_dict : dict</span>
+<span class="sd">        Dictionary containing all input parameters and data generated along the way, including the output figures and axes</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inv_file</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">PurePath</span><span class="p">):</span>
+        <span class="k">pass</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">inv_file</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">inv_file</span><span class="p">)</span>
+
+    <span class="n">inv_dict</span> <span class="o">=</span> <span class="n">ingest_inv</span><span class="p">(</span><span class="n">inv_file</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">show_iterations</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">inv_dict</span> <span class="o">=</span> <span class="n">read_inv_data</span><span class="p">(</span><span class="n">inv_file</span><span class="o">=</span><span class="n">inv_file</span><span class="p">,</span> <span class="n">inv_dict</span><span class="o">=</span><span class="n">inv_dict</span><span class="p">)</span>
+
+    <span class="n">allIterList</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="s1">&#39;all&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">iteration</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="n">iteration</span> <span class="o">=</span> <span class="p">[</span><span class="n">iteration</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">iteration</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">allIterList</span><span class="p">:</span>
+        <span class="n">iteration</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;iterationDF&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">Iteration</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
+    <span class="n">iterIndList</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">iterNoList</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">figList</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">axList</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">iteration</span><span class="p">:</span>
+        <span class="n">iterNo</span> <span class="o">=</span> <span class="n">i</span>
+        <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;iterationNo&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">iterNo</span>
+        <span class="n">iterInd</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;iterationDF&#39;</span><span class="p">][</span><span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;iterationDF&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">Iteration</span><span class="o">==</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;iterationInd&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">iterInd</span>
+        <span class="n">inv_dict</span> <span class="o">=</span> <span class="n">read_inv_data_other</span><span class="p">(</span><span class="n">inv_file</span><span class="o">=</span><span class="n">inv_file</span><span class="p">,</span> <span class="n">inv_dict</span><span class="o">=</span><span class="n">inv_dict</span><span class="p">,</span> <span class="n">iteration_no</span><span class="o">=</span><span class="n">iterNo</span><span class="p">)</span>
+        <span class="n">inv_dict</span> <span class="o">=</span> <span class="n">read_error_data</span><span class="p">(</span><span class="n">inv_file</span><span class="o">=</span><span class="n">inv_file</span><span class="p">,</span> <span class="n">inv_dict</span><span class="o">=</span><span class="n">inv_dict</span><span class="p">)</span>
+        <span class="n">inv_dict</span> <span class="o">=</span> <span class="n">get_resistivitiy_model</span><span class="p">(</span><span class="n">inv_file</span><span class="o">=</span><span class="n">inv_file</span><span class="p">,</span> <span class="n">inv_dict</span><span class="o">=</span><span class="n">inv_dict</span><span class="p">)</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">resinv_plot</span><span class="p">(</span><span class="n">inv_dict</span><span class="o">=</span><span class="n">inv_dict</span><span class="p">,</span> <span class="o">**</span><span class="n">resinv_plot_kwargs</span><span class="p">)</span>
+
+        <span class="n">iterIndList</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="n">iterNoList</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;iterationDF&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">iterInd</span><span class="p">,</span> <span class="s1">&#39;Iteration&#39;</span><span class="p">])</span>
+        <span class="n">figList</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
+        <span class="n">axList</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
+
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;iterationNo&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">iterIndList</span>
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;iterationInd&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">iterNoList</span>
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;fig&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">figList</span>
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;ax&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">axList</span>
+    
+    <span class="k">return</span> <span class="n">inv_dict</span></div>
+
+<span class="c1">#Function to ingest inv file and find key information for later</span>
+<div class="viewcode-block" id="ingest_inv"><a class="viewcode-back" href="../InvPyplot.html#invplot.ingest_inv">[docs]</a><span class="k">def</span> <span class="nf">ingest_inv</span><span class="p">(</span><span class="n">inv_file</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">show_iterations</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Function to ingest inversion file and get key points (row numbers) in the file</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    inv_file : str or pathlib.Path object</span>
+<span class="sd">        The res2Dinv .inv file to work with.</span>
+<span class="sd">    verbose : bool, default=True</span>
+<span class="sd">        Whether to print results to terminal. Here, prints a pandas dataframe with information about iterations.</span>
+<span class="sd">    show_iterations : bool, default=True</span>
+<span class="sd">        Whether to show a matplotlib plot with the iteration on x axis and percent error on y axis.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    inv_dict : dict</span>
+<span class="sd">        Dictionary containing the important locations in the file</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inv_file</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">PurePath</span><span class="p">):</span>
+        <span class="k">pass</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">inv_file</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">inv_file</span><span class="p">)</span>
+    
+    <span class="n">fileHeader</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">iterationStartRowList</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">layerRowList</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">layerDepths</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">noLayerRow</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">blockRow</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">layerRow</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">layerInfoRow</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">resistDF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+    <span class="n">dataList</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">noPoints</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">calcResistivityRowList</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">refResistRow</span><span class="o">=-</span><span class="mi">1</span>
+    <span class="n">topoDataRow</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">iterationsInfoRow</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">inv_file</span><span class="p">))</span> <span class="k">as</span> <span class="n">datafile</span><span class="p">:</span> 
+        <span class="n">filereader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">datafile</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">filereader</span><span class="p">):</span>
+            <span class="n">startLayer</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">endLayer</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">lay</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="c1">#print(row[0])</span>
+            <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">8</span><span class="p">:</span>
+               
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">&gt;</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="n">fileHeader</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="s1">&#39;, &#39;</span><span class="o">+</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">fileHeader</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+                    <span class="k">continue</span>
+                
+            <span class="k">if</span> <span class="s1">&#39;NUMBER OF LAYERS&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">noLayerRow</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">noLayerRow</span><span class="p">:</span>
+                <span class="n">noLayers</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">layerList</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">noLayers</span><span class="p">,</span> <span class="n">noLayers</span><span class="p">)</span>
+                <span class="k">continue</span>
+            
+            <span class="k">if</span> <span class="s1">&#39;NUMBER OF BLOCKS&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">blockRow</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">==</span><span class="n">blockRow</span><span class="p">:</span>
+                <span class="n">noBlocks</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="s1">&#39;ITERATION&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">iterationStartRowList</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="c1">#Add row of iteration to iterationStartRowList</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="s1">&#39;LAYER &#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">iterInd</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">iterationStartRowList</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span>
+                <span class="k">if</span> <span class="n">iterInd</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">layerRowList</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="n">layerRowList</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">layerRowList</span><span class="p">[</span><span class="n">iterInd</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">layerInfoRow</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">==</span><span class="n">layerInfoRow</span><span class="p">:</span>
+                <span class="n">noPoints</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()))</span>
+                <span class="n">layerDepths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+                <span class="k">continue</span>
+            
+            <span class="k">if</span> <span class="s1">&#39;CALCULATED APPARENT RESISTIVITY&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">calcResistivityRowList</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">continue</span>
+            
+            <span class="k">if</span> <span class="s1">&#39;Reference resistivity is&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">refResistRow</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span> 
+                <span class="k">continue</span>
+            
+            <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">==</span><span class="n">refResistRow</span><span class="p">:</span>
+                <span class="n">refResist</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+                <span class="k">continue</span>
+            
+            <span class="k">if</span> <span class="s1">&#39;TOPOGRAPHICAL DATA&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">topoDataRow</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">==</span><span class="n">topoDataRow</span><span class="o">+</span><span class="mi">2</span><span class="p">:</span>
+                <span class="n">noTopoPts</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="s1">&#39;COORDINATES FOR ELECTRODES&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">electrodeCoordsRow</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="s1">&#39;Shift matrix&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">shiftMatrixRow</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="s1">&#39;Blocks sensitivity and uncertainity values (with smoothness constrain)&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">sensAndUncertainRow</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="s1">&#39;Error Distribution&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">errorDistRow</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="c1">#no of data points</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="s1">&#39;Total Time&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">iterationsInfoRow</span><span class="o">=</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">iterDataList</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">continue</span>
+            
+            <span class="k">if</span> <span class="n">iterationsInfoRow</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="p">[]:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;   &#39;</span><span class="p">)</span>
+                    <span class="n">noIterations</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="n">iterationsInfoRow</span><span class="o">-</span><span class="mi">1</span>
+                    <span class="k">break</span>
+                <span class="n">iterDataList</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+
+    <span class="n">layerDepths</span> <span class="o">=</span> <span class="n">layerDepths</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">noLayers</span><span class="p">]</span>
+    <span class="n">layerDepths</span><span class="p">[</span><span class="n">noLayers</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">layerDepths</span><span class="p">[(</span><span class="n">noLayers</span><span class="o">-</span><span class="mi">2</span><span class="p">)])</span><span class="o">+</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">layerDepths</span><span class="p">[</span><span class="n">noLayers</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span><span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="n">layerDepths</span><span class="p">[</span><span class="n">noLayers</span><span class="o">-</span><span class="mi">3</span><span class="p">]))</span>
+    <span class="n">layerDepths</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">layerDepths</span><span class="p">]</span>
+
+    <span class="n">noPoints</span> <span class="o">=</span> <span class="n">noPoints</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">noLayers</span><span class="p">]</span>
+
+    <span class="n">keyList</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Name&#39;</span><span class="p">,</span> <span class="s1">&#39;NomElectrodeSpacing&#39;</span><span class="p">,</span> <span class="s1">&#39;ArrayCode&#39;</span><span class="p">,</span> <span class="s1">&#39;ProtocolCode&#39;</span><span class="p">,</span> <span class="s1">&#39;MeasureHeader&#39;</span><span class="p">,</span> <span class="s1">&#39;MeasureType&#39;</span><span class="p">,</span> <span class="s1">&#39;NoDataPoints&#39;</span><span class="p">,</span><span class="s1">&#39;DistanceType&#39;</span><span class="p">,</span><span class="s1">&#39;FinalFlag&#39;</span><span class="p">]</span>
+
+    <span class="k">global</span> <span class="n">fileHeaderDict</span>
+    <span class="n">fileHeaderDict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">keyList</span><span class="p">,</span> <span class="n">fileHeader</span><span class="p">))</span>
+    <span class="n">noDataPoints</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">fileHeaderDict</span><span class="p">[</span><span class="s1">&#39;NoDataPoints&#39;</span><span class="p">])</span>
+    <span class="n">iterationDF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">iterDataList</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Iteration&#39;</span><span class="p">,</span>  <span class="s1">&#39;Time for this iteration&#39;</span><span class="p">,</span> <span class="s1">&#39;Total Time&#39;</span><span class="p">,</span> <span class="s1">&#39;%AbsError&#39;</span><span class="p">])</span>
+    <span class="n">iterationDF</span> <span class="o">=</span> <span class="n">iterationDF</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">to_numeric</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">iterationDF</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">show_iterations</span><span class="p">:</span>
+        <span class="n">fig1</span><span class="p">,</span> <span class="n">ax1</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">iterationDF</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;Iteration&#39;</span><span class="p">,</span><span class="s1">&#39;%AbsError&#39;</span><span class="p">,</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">),</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax1</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">)</span>
+        <span class="n">iterationDF</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;Iteration&#39;</span><span class="p">,</span><span class="s1">&#39;%AbsError&#39;</span><span class="p">,</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">),</span><span class="n">kind</span><span class="o">=</span><span class="s1">&#39;scatter&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax1</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">inv_file</span><span class="o">.</span><span class="n">stem</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">iterationDF</span><span class="p">[</span><span class="s1">&#39;Iteration&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">get_legend</span><span class="p">()</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">fig1</span><span class="p">)</span>
+
+    <span class="n">inv_dict</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;inv_file_Path&#39;</span><span class="p">:</span><span class="n">inv_file</span><span class="p">,</span>
+        <span class="s1">&#39;fileHeader&#39;</span><span class="p">:</span><span class="n">fileHeader</span><span class="p">,</span>
+        <span class="s1">&#39;iterationStartRowList&#39;</span><span class="p">:</span><span class="n">iterationStartRowList</span><span class="p">,</span>
+        <span class="s1">&#39;layerRowList&#39;</span><span class="p">:</span><span class="n">layerRowList</span><span class="p">,</span> 
+        <span class="s1">&#39;layerDepths&#39;</span><span class="p">:</span><span class="n">layerDepths</span><span class="p">,</span>
+        <span class="s1">&#39;noLayerRow&#39;</span><span class="p">:</span><span class="n">noLayerRow</span><span class="p">,</span>
+        <span class="s1">&#39;blockRow&#39;</span><span class="p">:</span><span class="n">blockRow</span> <span class="p">,</span>
+        <span class="s1">&#39;layerRow&#39;</span><span class="p">:</span><span class="n">layerRow</span> <span class="p">,</span>
+        <span class="s1">&#39;layerInfoRow&#39;</span><span class="p">:</span><span class="n">layerInfoRow</span> <span class="p">,</span>
+        <span class="s1">&#39;resistDF&#39;</span><span class="p">:</span><span class="n">resistDF</span><span class="p">,</span>
+        <span class="s1">&#39;dataList&#39;</span><span class="p">:</span><span class="n">dataList</span><span class="p">,</span>
+        <span class="s1">&#39;noPoints&#39;</span><span class="p">:</span><span class="n">noPoints</span><span class="p">,</span>
+        <span class="s1">&#39;calcResistivityRowList&#39;</span><span class="p">:</span><span class="n">calcResistivityRowList</span> <span class="p">,</span>
+        <span class="s1">&#39;refResistRow&#39;</span><span class="p">:</span><span class="n">refResistRow</span><span class="p">,</span>
+        <span class="s1">&#39;topoDataRow&#39;</span><span class="p">:</span><span class="n">topoDataRow</span><span class="p">,</span>
+        <span class="s1">&#39;iterationsInfoRow&#39;</span><span class="p">:</span><span class="n">iterationsInfoRow</span><span class="p">,</span>
+        <span class="s1">&#39;iterationDF&#39;</span><span class="p">:</span><span class="n">iterationDF</span><span class="p">,</span>
+        <span class="s1">&#39;noIterations&#39;</span><span class="p">:</span><span class="n">noIterations</span><span class="p">,</span>
+        <span class="s1">&#39;noDataPoints&#39;</span><span class="p">:</span><span class="n">noDataPoints</span><span class="p">,</span>
+        <span class="s1">&#39;shiftMatrixRow&#39;</span><span class="p">:</span><span class="n">shiftMatrixRow</span><span class="p">,</span>
+        <span class="s1">&#39;electrodeCoordsRow&#39;</span><span class="p">:</span><span class="n">electrodeCoordsRow</span><span class="p">,</span>
+        <span class="s1">&#39;noTopoPts&#39;</span><span class="p">:</span><span class="n">noTopoPts</span><span class="p">,</span>
+        <span class="s1">&#39;sensAndUncertainRow&#39;</span><span class="p">:</span><span class="n">sensAndUncertainRow</span><span class="p">,</span>
+        <span class="s1">&#39;noModelBlocks&#39;</span><span class="p">:[],</span>
+        <span class="s1">&#39;errorDistRow&#39;</span><span class="p">:</span><span class="n">errorDistRow</span><span class="p">,</span>
+        <span class="s1">&#39;fileHeaderDict&#39;</span><span class="p">:</span><span class="n">fileHeaderDict</span><span class="p">}</span>
+    
+    <span class="k">return</span> <span class="n">inv_dict</span></div>
+
+<span class="c1">#Input Data</span>
+<div class="viewcode-block" id="read_inv_data"><a class="viewcode-back" href="../InvPyplot.html#invplot.read_inv_data">[docs]</a><span class="k">def</span> <span class="nf">read_inv_data</span><span class="p">(</span><span class="n">inv_file</span><span class="p">,</span> <span class="n">inv_dict</span><span class="p">,</span> <span class="n">startRow</span><span class="o">=</span><span class="mi">9</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Function to do initial read of .inv file. </span>
+<span class="sd">    </span>
+<span class="sd">    This data does not change with iteration, as in later function. This function should be readafter ingest_inv, using the output from that as inv_dict.</span>
+<span class="sd">     </span>
+<span class="sd">    </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    inv_file : str or pathlib.Path object</span>
+<span class="sd">        Filepath of .inv file</span>
+<span class="sd">    inv_dict : dict</span>
+<span class="sd">        Dictionary (output from ingest_inv) containing information about where data is located in the .inv file</span>
+<span class="sd">    startRow : int, optional</span>
+<span class="sd">        Where to start the read. This is, by default 9, which works well for .inv files tested.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    _type_</span>
+<span class="sd">        _description_</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">noDataPoints</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;noDataPoints&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inv_file</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">PurePath</span><span class="p">):</span>
+        <span class="k">pass</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">inv_file</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">inv_file</span><span class="p">)</span>
+
+    <span class="kn">import</span> <span class="nn">csv</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">inv_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">datafile</span><span class="p">:</span> 
+        <span class="n">filereader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">datafile</span><span class="p">)</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">inDataList</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">filereader</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">startRow</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">elif</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">startRow</span><span class="o">+</span><span class="n">noDataPoints</span><span class="p">:</span>
+                <span class="n">inDataList</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s1">&#39;\s+&#39;</span><span class="p">,</span><span class="s1">&#39; &#39;</span><span class="p">,</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">break</span>
+    <span class="n">inDF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">inDataList</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">startRow</span> <span class="o">==</span> <span class="mi">9</span><span class="p">:</span>
+        <span class="n">inDF</span><span class="o">.</span><span class="n">drop</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">inDF</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">inDF</span><span class="o">.</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;NoElectrodes&#39;</span><span class="p">,</span> <span class="s1">&#39;A(x)&#39;</span><span class="p">,</span> <span class="s1">&#39;A(z)&#39;</span><span class="p">,</span> <span class="s1">&#39;B(x)&#39;</span><span class="p">,</span> <span class="s1">&#39;B(z)&#39;</span><span class="p">,</span> <span class="s1">&#39;M(x)&#39;</span><span class="p">,</span> <span class="s1">&#39;M(z)&#39;</span><span class="p">,</span> <span class="s1">&#39;N(x)&#39;</span><span class="p">,</span> <span class="s1">&#39;N(z)&#39;</span><span class="p">,</span> <span class="s1">&#39;Data&#39;</span><span class="p">]</span>
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;resistDF&#39;</span><span class="p">]</span>  <span class="o">=</span> <span class="n">inDF</span>
+    <span class="k">return</span> <span class="n">inv_dict</span></div>
+
+<span class="c1">#Read other important inversion data</span>
+<div class="viewcode-block" id="read_inv_data_other"><a class="viewcode-back" href="../InvPyplot.html#invplot.read_inv_data_other">[docs]</a><span class="k">def</span> <span class="nf">read_inv_data_other</span><span class="p">(</span><span class="n">inv_file</span><span class="p">,</span> <span class="n">inv_dict</span><span class="p">,</span> <span class="n">iteration_no</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Function to read inversion data. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    inv_file : str or pathlib.Path object</span>
+<span class="sd">        Filepath to .inv file of interest.</span>
+<span class="sd">    inv_dict : dict</span>
+<span class="sd">        Dictionary contianing outputs from ingest_inv and read_in_data.</span>
+<span class="sd">    iteration_no : int</span>
+<span class="sd">        Iteration number of interest.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        Dictionary with more information appended to input dictionary</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">iteration_no</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Please run read_inv_data_other again and specify iteration by setting iteration_no parameter equal to integer.&#39;</span><span class="p">)</span>
+        <span class="k">return</span>
+    <span class="c1">#Extract needed variables from dict</span>
+    <span class="n">iterationInd</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;iterationDF&#39;</span><span class="p">][</span><span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;iterationDF&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">Iteration</span><span class="o">==</span><span class="n">iteration_no</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;iterationNo&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">iteration_no</span>
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;iterationInd&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">iterationInd</span>
+
+
+    <span class="n">invDF</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;resistDF&#39;</span><span class="p">]</span>
+    <span class="n">layerRowList</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;layerRowList&#39;</span><span class="p">]</span>
+    <span class="n">noPoints</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;noPoints&#39;</span><span class="p">]</span>
+    <span class="n">layerDepths</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;layerDepths&#39;</span><span class="p">]</span>
+    <span class="n">shiftMatrixRow</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;shiftMatrixRow&#39;</span><span class="p">]</span>
+    <span class="n">electrodeCoordsRow</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;electrodeCoordsRow&#39;</span><span class="p">]</span>
+    <span class="n">topoDataRow</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;topoDataRow&#39;</span><span class="p">]</span>
+    <span class="n">noTopoPts</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;noTopoPts&#39;</span><span class="p">]</span>
+    <span class="n">sensAndUncertainRow</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;sensAndUncertainRow&#39;</span><span class="p">]</span>
+
+    <span class="c1">#Get Electrodes</span>
+    <span class="n">electrodes</span><span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">invDF</span><span class="p">[</span><span class="s1">&#39;A(x)&#39;</span><span class="p">],</span><span class="n">invDF</span><span class="p">[</span><span class="s1">&#39;B(x)&#39;</span><span class="p">],</span> <span class="n">invDF</span><span class="p">[</span><span class="s1">&#39;M(x)&#39;</span><span class="p">],</span> <span class="n">invDF</span><span class="p">[</span><span class="s1">&#39;B(x)&#39;</span><span class="p">],</span> <span class="n">invDF</span><span class="p">[</span><span class="s1">&#39;N(x)&#39;</span><span class="p">]],</span><span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">electrodes</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">electrodes</span> <span class="o">=</span> <span class="n">electrodes</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;electrodes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">electrodes</span>
+
+    <span class="c1">#ElectrodeCoordinates</span>
+    <span class="n">noModelElects</span> <span class="o">=</span> <span class="n">shiftMatrixRow</span><span class="o">-</span><span class="n">electrodeCoordsRow</span><span class="o">-</span><span class="mi">1</span>
+    <span class="n">electrodeCoordsDF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_table</span><span class="p">(</span><span class="n">inv_file</span><span class="p">,</span><span class="n">skiprows</span><span class="o">=</span><span class="n">electrodeCoordsRow</span><span class="p">,</span><span class="n">nrows</span><span class="o">=</span><span class="n">noModelElects</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;\s+&#39;</span><span class="p">)</span>
+    <span class="n">electrodeCoordsDF</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">electrodeCoordsDF</span><span class="o">.</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;xDist&#39;</span><span class="p">,</span><span class="s1">&#39;RelElevation&#39;</span><span class="p">]</span>
+    <span class="n">electrodeCoordsDF</span><span class="p">[</span><span class="s1">&#39;ElectrodeNo&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">electrodeCoordsDF</span><span class="o">.</span><span class="n">index</span><span class="o">+</span><span class="mi">1</span>
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;electrodeCoordsDF&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">electrodeCoordsDF</span>
+
+    <span class="c1">#Topographical Data</span>
+    <span class="n">topoDF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_table</span><span class="p">(</span><span class="n">inv_file</span><span class="p">,</span><span class="n">skiprows</span><span class="o">=</span><span class="n">topoDataRow</span><span class="o">+</span><span class="mi">2</span><span class="p">,</span><span class="n">nrows</span><span class="o">=</span><span class="n">noTopoPts</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;\s+&#39;</span><span class="p">)</span>
+    <span class="n">topoDF</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">topoDF</span><span class="o">.</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;xDist&#39;</span><span class="p">,</span><span class="s1">&#39;Elevation&#39;</span><span class="p">]</span>
+    <span class="n">topoDF</span><span class="p">[</span><span class="s1">&#39;ElectrodeNo&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">topoDF</span><span class="o">.</span><span class="n">index</span><span class="o">+</span><span class="mi">1</span>
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;topoDF&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">topoDF</span>
+
+    <span class="c1">#Resistivity Model</span>
+    <span class="n">resistModelDF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">layerRowList</span><span class="p">[</span><span class="n">iterationInd</span><span class="p">]):</span>
+        <span class="n">layerDepth</span> <span class="o">=</span> <span class="n">layerDepths</span><span class="p">[</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="n">noPtsInLyr</span> <span class="o">=</span> <span class="n">noPoints</span><span class="p">[</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="n">currDF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_table</span><span class="p">(</span><span class="n">inv_file</span><span class="p">,</span><span class="n">skiprows</span><span class="o">=</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">nrows</span><span class="o">=</span><span class="n">noPtsInLyr</span><span class="p">,</span><span class="n">sep</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="n">currDF</span><span class="o">.</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;ElectrodeNo&#39;</span><span class="p">,</span><span class="s1">&#39;Data&#39;</span><span class="p">]</span>
+        <span class="n">currDF</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">layerDepth</span>
+        <span class="n">resistModelDF</span><span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">resistModelDF</span><span class="p">,</span><span class="n">currDF</span><span class="p">],</span><span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">resistModelDF</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">noModelBlocks</span><span class="o">=</span><span class="n">resistModelDF</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;resistModelDF&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">resistModelDF</span>
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;noModelBlocks&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">noModelBlocks</span>
+
+    <span class="c1">#Shift Matrix</span>
+    <span class="n">shiftMatrixDF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_table</span><span class="p">(</span><span class="n">inv_file</span><span class="p">,</span><span class="n">skiprows</span><span class="o">=</span><span class="n">shiftMatrixRow</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">nrows</span><span class="o">=</span><span class="n">noModelElects</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;\s+&#39;</span><span class="p">,</span><span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">shiftMatrixDF</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">shiftMatrixDF</span><span class="p">:</span>
+        <span class="n">shiftMatrixDF</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="n">c</span><span class="p">:</span><span class="s1">&#39;Layer&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">)},</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;shiftMatrixDF&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">shiftMatrixDF</span>
+
+    <span class="c1">#Sensitivity</span>
+    <span class="n">sensDF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_table</span><span class="p">(</span><span class="n">inv_file</span><span class="p">,</span><span class="n">skiprows</span><span class="o">=</span><span class="n">sensAndUncertainRow</span><span class="o">+</span><span class="mi">3</span><span class="p">,</span><span class="n">nrows</span><span class="o">=</span><span class="n">noModelBlocks</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;\s+&#39;</span><span class="p">,</span><span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">sensDF</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">sensDF</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">sensDF</span><span class="o">.</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;BlockNo&#39;</span><span class="p">,</span><span class="s1">&#39;Sensitivity&#39;</span><span class="p">,</span> <span class="s1">&#39;%ApproxUncertainty&#39;</span><span class="p">]</span>
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;sensDF&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sensDF</span>
+
+    <span class="k">return</span> <span class="n">inv_dict</span></div>
+
+<span class="c1">#Error Distribution</span>
+<div class="viewcode-block" id="read_error_data"><a class="viewcode-back" href="../InvPyplot.html#invplot.read_error_data">[docs]</a><span class="k">def</span> <span class="nf">read_error_data</span><span class="p">(</span><span class="n">inv_file</span><span class="p">,</span> <span class="n">inv_dict</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Function to read data pertaining to model error</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    inv_file : str or pathlib.Path object</span>
+<span class="sd">        Filepath to .inv file of interest</span>
+<span class="sd">    inv_dict : dict </span>
+<span class="sd">        Dictionary containing cumulative output from ingest_inv, read_inv_data, and read_inv_data_other</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        Ouptput dictionary containing all information from read_error_data and previous functions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">csv</span>
+    <span class="n">noDataPoints</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;noDataPoints&#39;</span><span class="p">]</span>
+    <span class="n">startRow</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;errorDistRow&#39;</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">inv_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">datafile</span><span class="p">:</span> 
+        <span class="n">filereader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">datafile</span><span class="p">)</span>
+        <span class="n">inDataList</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">filereader</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">startRow</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">elif</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">startRow</span><span class="o">+</span><span class="n">noDataPoints</span><span class="p">:</span>
+                <span class="n">newrow</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">newrow</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">newrow</span><span class="p">[</span><span class="mi">4</span><span class="p">][</span><span class="mi">8</span><span class="p">:])</span>
+                <span class="n">newrow</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="n">newrow</span><span class="p">[</span><span class="mi">4</span><span class="p">][</span><span class="mi">0</span><span class="p">:</span><span class="mi">8</span><span class="p">]</span>
+                <span class="n">newrow</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">newrow</span><span class="p">]</span>
+                <span class="n">inDataList</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">newrow</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">break</span>
+    <span class="n">inDF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">inDataList</span><span class="p">)</span>
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;errDistDF&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">inDF</span>
+
+    <span class="n">errDistDF</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;errDistDF&#39;</span><span class="p">]</span>
+
+    <span class="n">colList</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;xDist?&#39;</span><span class="p">,</span><span class="s1">&#39;nFactor?&#39;</span><span class="p">,</span><span class="s1">&#39;Measure1&#39;</span><span class="p">,</span><span class="s1">&#39;Measure2&#39;</span><span class="p">,</span><span class="s1">&#39;PercentError&#39;</span><span class="p">,</span><span class="s1">&#39;MoreStacks&#39;</span><span class="p">,</span><span class="s1">&#39;AvgMeasure&#39;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">5</span><span class="p">):</span>
+        <span class="n">errDistDF</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="n">errDistDF</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="n">errDistDF</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="n">i</span><span class="p">:</span><span class="n">colList</span><span class="p">[</span><span class="n">i</span><span class="p">]},</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">errDistDF</span><span class="p">[</span><span class="s1">&#39;AvgMeasure&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">errDistDF</span><span class="p">[</span><span class="s1">&#39;Measure1&#39;</span><span class="p">]</span><span class="o">+</span><span class="n">errDistDF</span><span class="p">[</span><span class="s1">&#39;Measure2&#39;</span><span class="p">])</span><span class="o">/</span><span class="mi">2</span>
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;errDistDF&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">errDistDF</span>
+    <span class="k">return</span> <span class="n">inv_dict</span></div>
+
+<span class="c1">#Interpolate between two points, simple</span>
+<div class="viewcode-block" id="map_diff"><a class="viewcode-back" href="../InvPyplot.html#invplot.map_diff">[docs]</a><span class="k">def</span> <span class="nf">map_diff</span><span class="p">(</span><span class="n">xIn</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span><span class="n">x2</span><span class="p">,</span><span class="n">y1</span><span class="p">,</span><span class="n">y2</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Simple, linear interpolation between two points</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    xIn : float, int, or numeric</span>
+<span class="sd">        X Location at which y-value is desired. This should fall between (or be equal to) x1 and x2</span>
+<span class="sd">    x1 : float, int, or numeric</span>
+<span class="sd">        Initial X location, with known y-value y1 </span>
+<span class="sd">    x2 : float, int, or numeric</span>
+<span class="sd">        Second X location, with known y-value y2</span>
+<span class="sd">    y1 : float, int, or numeric</span>
+<span class="sd">        Known y-value at x1</span>
+<span class="sd">    y2 : float, int, or numeric</span>
+<span class="sd">        Known y-value at x2</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        Y-value that is proportionally scaled based on the xIn relative distance to x1 and x2</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">x1</span><span class="o">==</span><span class="n">xIn</span><span class="p">:</span>
+        <span class="n">yOut</span><span class="o">=</span><span class="n">y1</span>
+    <span class="k">elif</span> <span class="n">x2</span><span class="o">==</span><span class="n">xIn</span><span class="p">:</span>
+        <span class="n">yOut</span> <span class="o">=</span> <span class="n">y2</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">totXDiff</span> <span class="o">=</span> <span class="n">x2</span><span class="o">-</span><span class="n">x1</span>
+        <span class="n">percXDiff</span> <span class="o">=</span> <span class="p">(</span><span class="n">xIn</span><span class="o">-</span><span class="n">x1</span><span class="p">)</span><span class="o">/</span><span class="n">totXDiff</span>
+        <span class="n">totYDiff</span> <span class="o">=</span> <span class="n">y2</span><span class="o">-</span><span class="n">y1</span>
+        <span class="n">yOut</span> <span class="o">=</span> <span class="n">y1</span> <span class="o">+</span> <span class="n">totYDiff</span><span class="o">*</span><span class="n">percXDiff</span>
+    <span class="k">return</span> <span class="n">yOut</span></div>
+
+<span class="c1">#Function to get resistivity model as pandas dataframe</span>
+<div class="viewcode-block" id="get_resistivitiy_model"><a class="viewcode-back" href="../InvPyplot.html#invplot.get_resistivitiy_model">[docs]</a><span class="k">def</span> <span class="nf">get_resistivitiy_model</span><span class="p">(</span><span class="n">inv_file</span><span class="p">,</span> <span class="n">inv_dict</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Function to read the resistivity model, given the iteration of interest.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    inv_file : str or pathlib.Path object</span>
+<span class="sd">        Filepath to .inv file of interest</span>
+<span class="sd">    inv_dict : dict</span>
+<span class="sd">        Dictionary containing cumulative output from invest_inv, read_inv_data, read_inv_data_other, and read_error_data.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        Dictionary with resistivity model contained in new key:value pair of inv_dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">resistModelDF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+    <span class="n">layerRowList</span><span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;layerRowList&#39;</span><span class="p">]</span>
+    <span class="n">iterationInd</span><span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;iterationInd&#39;</span><span class="p">]</span>
+    <span class="n">layerDepths</span><span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;layerDepths&#39;</span><span class="p">]</span>
+    <span class="n">noPoints</span><span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;noPoints&#39;</span><span class="p">]</span>
+    <span class="n">electrodeCoordsDF</span><span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;electrodeCoordsDF&#39;</span><span class="p">]</span>
+    <span class="n">topoDF</span><span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;topoDF&#39;</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">layerRowList</span><span class="p">[</span><span class="n">iterationInd</span><span class="p">]):</span>
+        <span class="n">layerDepth</span> <span class="o">=</span> <span class="n">layerDepths</span><span class="p">[</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="n">noPtsInLyr</span> <span class="o">=</span> <span class="n">noPoints</span><span class="p">[</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="n">currDF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_table</span><span class="p">(</span><span class="n">inv_file</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">nrows</span><span class="o">=</span><span class="n">noPtsInLyr</span><span class="p">,</span><span class="n">sep</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="n">currDF</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">currDF</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span>  <span class="n">currDF</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">currDF</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">currDF</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">currDF</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">currDF</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">currDF</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span>
+        <span class="n">currDF</span><span class="o">.</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;ElectrodeNo&#39;</span><span class="p">,</span><span class="s1">&#39;Data&#39;</span><span class="p">]</span>
+        <span class="n">currDF</span><span class="p">[</span><span class="s1">&#39;zDepth&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">layerDepth</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">currDF</span><span class="o">.</span><span class="n">index</span><span class="p">:</span>
+            <span class="n">lowerElecNo</span> <span class="o">=</span> <span class="n">currDF</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="s1">&#39;ElectrodeNo&#39;</span><span class="p">]</span><span class="c1">#-1</span>
+            <span class="n">elecInd</span> <span class="o">=</span> <span class="n">electrodeCoordsDF</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">electrodeCoordsDF</span><span class="p">[</span><span class="s1">&#39;ElectrodeNo&#39;</span><span class="p">]</span><span class="o">==</span><span class="n">lowerElecNo</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">currDF</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="s1">&#39;x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">electrodeCoordsDF</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">elecInd</span><span class="p">,</span><span class="s1">&#39;xDist&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">electrodeCoordsDF</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">elecInd</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="s1">&#39;xDist&#39;</span><span class="p">])</span><span class="o">/</span><span class="mi">2</span>
+            <span class="k">for</span> <span class="n">xT</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">topoDF</span><span class="p">[</span><span class="s1">&#39;xDist&#39;</span><span class="p">]):</span>
+                <span class="k">if</span> <span class="n">xT</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">currDF</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="s1">&#39;x&#39;</span><span class="p">]:</span>
+                    <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">topoX1</span> <span class="o">=</span> <span class="n">topoDF</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">xT</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="s1">&#39;xDist&#39;</span><span class="p">]</span>
+                    <span class="n">topoX2</span> <span class="o">=</span> <span class="n">topoDF</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">xT</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="s1">&#39;xDist&#39;</span><span class="p">]</span>
+                    <span class="n">topoZ1</span> <span class="o">=</span> <span class="n">topoDF</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">xT</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="s1">&#39;Elevation&#39;</span><span class="p">]</span>
+                    <span class="n">topoZ2</span> <span class="o">=</span> <span class="n">topoDF</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">xT</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="s1">&#39;Elevation&#39;</span><span class="p">]</span>
+                    <span class="k">break</span>
+            <span class="n">currDF</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="s1">&#39;zElev&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">map_diff</span><span class="p">(</span><span class="n">currDF</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="s1">&#39;x&#39;</span><span class="p">],</span><span class="n">topoX1</span><span class="p">,</span> <span class="n">topoX2</span><span class="p">,</span> <span class="n">topoZ1</span><span class="p">,</span> <span class="n">topoZ2</span><span class="p">)</span><span class="o">-</span><span class="n">currDF</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="s1">&#39;zDepth&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">surfDF</span> <span class="o">=</span> <span class="n">currDF</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">surfDF</span><span class="p">[</span><span class="s1">&#39;zElev&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">surfDF</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span><span class="s1">&#39;zElev&#39;</span><span class="p">]</span><span class="o">+</span><span class="n">surfDF</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span><span class="s1">&#39;zDepth&#39;</span><span class="p">]</span>
+            <span class="n">surfDF</span><span class="p">[</span><span class="s1">&#39;zDepth&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">resistModelDF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">resistModelDF</span><span class="p">,</span> <span class="n">surfDF</span><span class="p">],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">resistModelDF</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">resistModelDF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">resistModelDF</span><span class="p">,</span> <span class="n">currDF</span><span class="p">],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">resistModelDF</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;resistModelDF&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">resistModelDF</span>
+    <span class="k">return</span> <span class="n">inv_dict</span></div>
+
+<span class="c1">#Helper function for __plot_pretty</span>
+<span class="k">def</span> <span class="nf">__label_plot</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">gridM</span><span class="p">,</span> <span class="n">gridFt</span><span class="p">,</span> <span class="n">whichTicks</span><span class="p">,</span> <span class="n">pUnit</span><span class="p">,</span> <span class="n">pUnitXLocs</span><span class="p">,</span> <span class="n">pUnitYLocs</span><span class="p">,</span> <span class="n">pUnitXLabels</span><span class="p">,</span><span class="n">pUnitYLabels</span><span class="p">,</span> <span class="n">sUnit</span><span class="p">,</span> <span class="n">sUnitXLocs</span><span class="p">,</span> <span class="n">sUnitYLocs</span><span class="p">,</span> <span class="n">sUnitXLabels</span><span class="p">,</span> <span class="n">sUnitYLabels</span><span class="p">,</span> <span class="n">xLims</span><span class="p">,</span> <span class="n">yLims</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;See __plot_pretty, as all input parameters are derived from there&quot;&quot;&quot;</span>
+    <span class="c1">#matplotlib.rc(&#39;font&#39;, family=&#39;sans-serif&#39;)   </span>
+    <span class="c1">#matplotlib.rc(&#39;font&#39;, serif=&#39;Helvetica&#39;) </span>
+    <span class="c1">#matplotlib.rc(&#39;text&#39;, usetex=&#39;false&#39;)   </span>
+    <span class="c1">#fontName = {&#39;fontname&#39;:&#39;Helvetica&#39;}</span>
+    
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Distance [&#39;</span><span class="o">+</span><span class="n">sUnit</span><span class="o">+</span><span class="s1">&#39;]&#39;</span><span class="p">,</span> <span class="n">fontsize</span> <span class="o">=</span> <span class="mi">12</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Elevation [&#39;</span><span class="o">+</span><span class="n">pUnit</span><span class="o">+</span><span class="s1">&#39;]&#39;</span><span class="p">,</span> <span class="n">fontsize</span> <span class="o">=</span> <span class="mi">14</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">sUnitXLocs</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">(</span><span class="n">pUnitYLocs</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">(</span><span class="n">sUnitXLabels</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_yticklabels</span><span class="p">(</span><span class="n">pUnitYLabels</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">(</span><span class="n">pUnitYLocs</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">yLims</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">xLims</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">minorticks_on</span><span class="p">()</span>
+
+    <span class="n">ax2</span><span class="o">=</span><span class="n">ax</span><span class="o">.</span><span class="n">twiny</span><span class="p">()</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">pUnitXLocs</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">(</span><span class="n">pUnitXLabels</span><span class="p">,</span><span class="n">fontdict</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;fontsize&#39;</span><span class="p">:</span><span class="mi">14</span><span class="p">})</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Distance [&#39;</span><span class="o">+</span><span class="n">pUnit</span><span class="o">+</span><span class="s1">&#39;]&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">14</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">minorticks_on</span><span class="p">()</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">xLims</span><span class="p">)</span>
+
+    <span class="n">ax3</span><span class="o">=</span><span class="n">ax2</span><span class="o">.</span><span class="n">twinx</span><span class="p">()</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">(</span><span class="n">sUnitYLocs</span><span class="p">)</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">set_yticklabels</span><span class="p">(</span><span class="n">sUnitYLabels</span><span class="p">,</span><span class="n">fontdict</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;fontsize&#39;</span><span class="p">:</span><span class="mi">10</span><span class="p">})</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">yLims</span><span class="p">)</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Elevation [&#39;</span><span class="o">+</span><span class="n">sUnit</span><span class="o">+</span><span class="s1">&#39;]&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">14</span><span class="p">,</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">270</span><span class="p">,</span> <span class="n">labelpad</span> <span class="o">=</span> <span class="mi">20</span><span class="p">)</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">minorticks_on</span><span class="p">()</span>
+    
+
+    <span class="k">if</span> <span class="n">pUnit</span><span class="o">==</span><span class="s1">&#39;m&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">gridM</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+           <span class="n">ax2</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="n">whichTicks</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">gridM</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="n">whichTicks</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">gridFt</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="n">whichTicks</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">gridFt</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="n">ax3</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="n">whichTicks</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">gridFt</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="n">ax2</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="n">whichTicks</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">gridFt</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="n">whichTicks</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">gridM</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="n">whichTicks</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">gridM</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="n">ax3</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="n">whichTicks</span><span class="p">)</span>
+
+<span class="c1">#Helper function for resinv_plot</span>
+<span class="k">def</span> <span class="nf">__plot_pretty</span><span class="p">(</span><span class="n">inv_dict</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span><span class="n">z</span><span class="p">,</span><span class="n">v</span><span class="p">,</span><span class="n">im</span><span class="p">,</span><span class="n">cbarTicks</span><span class="p">,</span><span class="n">fig</span><span class="p">,</span><span class="n">ax</span><span class="p">,</span> <span class="n">colMap</span><span class="o">=</span><span class="s1">&#39;jet&#39;</span><span class="p">,</span><span class="n">cMin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">cMax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gridFt</span><span class="o">=</span><span class="p">[</span><span class="kc">False</span><span class="p">,</span><span class="kc">False</span><span class="p">],</span> <span class="n">gridM</span><span class="o">=</span><span class="p">[</span><span class="kc">False</span><span class="p">,</span><span class="kc">False</span><span class="p">],</span> <span class="n">t</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">primaryUnit</span><span class="o">=</span><span class="s1">&#39;m&#39;</span><span class="p">,</span> <span class="n">tight_layout</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cBarOrient</span><span class="o">=</span><span class="s1">&#39;vertical&#39;</span><span class="p">,</span> <span class="n">cBarFormat</span> <span class="o">=</span><span class="s1">&#39;</span><span class="si">%3.0f</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">cBarLabel</span> <span class="o">=</span><span class="s1">&#39;Resistivity (ohm-m)&#39;</span><span class="p">,</span> <span class="n">showPoints</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">whichTicks</span><span class="o">=</span><span class="s1">&#39;major&#39;</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper function for resinv_plot, parameters derived from there.&quot;&quot;&quot;</span>
+
+    <span class="n">topoDF</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;topoDF&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">cMin</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">cMin</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;resistModelDF&#39;</span><span class="p">][</span><span class="s1">&#39;Data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">cMax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">cMax</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;resistModelDF&#39;</span><span class="p">][</span><span class="s1">&#39;Data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+    
+    <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s2">&quot;figure.dpi&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">300</span>  
+    <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s1">&#39;xtick.bottom&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s1">&#39;xtick.labelbottom&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s1">&#39;xtick.top&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s1">&#39;xtick.labeltop&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s2">&quot;xtick.top&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">sca</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
+    
+
+    <span class="n">vmax90</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span>
+    <span class="n">vmin2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">vmax</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+    <span class="n">vmin</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+    <span class="n">minx</span> <span class="o">=</span> <span class="n">topoDF</span><span class="p">[</span><span class="s1">&#39;xDist&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+    <span class="n">maxx</span> <span class="o">=</span> <span class="n">topoDF</span><span class="p">[</span><span class="s1">&#39;xDist&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+    <span class="n">minz</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+    <span class="n">maxz</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+
+    <span class="c1">#xlocsM = ax.get_xticks()</span>
+    <span class="k">if</span> <span class="n">maxx</span><span class="o">&gt;</span><span class="mi">800</span><span class="p">:</span>
+        <span class="n">xlocsM</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">minx</span><span class="p">,</span><span class="n">maxx</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="mi">100</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">max</span><span class="p">(</span><span class="n">xlocsM</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">maxx</span><span class="p">:</span>
+            <span class="n">xlocsM</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">minx</span><span class="p">,</span><span class="n">maxx</span><span class="o">+</span><span class="mi">101</span><span class="p">,</span><span class="mi">100</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">xlocsM</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">minx</span><span class="p">,</span><span class="n">maxx</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="mi">50</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">max</span><span class="p">(</span><span class="n">xlocsM</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">maxx</span><span class="p">:</span>
+            <span class="n">xlocsM</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">minx</span><span class="p">,</span><span class="n">maxx</span><span class="o">+</span><span class="mi">51</span><span class="p">,</span><span class="mi">50</span><span class="p">)</span>
+
+    <span class="n">xlabelsM</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">xlocsM</span><span class="p">]</span>
+    <span class="n">xlocsFt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">(</span><span class="n">xlocsM</span><span class="o">*</span><span class="mf">3.2808399</span><span class="p">)</span>
+    <span class="n">xlabelsFt</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">xlocsFt</span><span class="p">]</span>
+
+    <span class="n">minFtxLoc</span> <span class="o">=</span> <span class="n">xlocsFt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">maxFtxLoc</span> <span class="o">=</span> <span class="n">xlocsFt</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">xLabelsFtEven</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">minFtxLoc</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">maxFtxLoc</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="mi">100</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">maxFtxLoc</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">maxFtxLoc</span><span class="p">:</span>
+        <span class="n">xLabelsFtEven</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">xLabelsFtEven</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">xLabelsFtEven</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">maxFtxLoc</span><span class="p">,</span><span class="o">-</span><span class="mi">2</span><span class="p">))</span>
+        <span class="n">xLabelsFtEven</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">xLabelsFtEven</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">xLabelsFtEven</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">maxFtxLoc</span><span class="p">,</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span><span class="o">+</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">xLocs_FTinM</span> <span class="o">=</span> <span class="n">xLabelsFtEven</span> <span class="o">/</span> <span class="mf">3.2808399</span>
+
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">maxz</span><span class="p">)</span><span class="o">&gt;</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">maxz</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">zEnd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">maxz</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">+</span><span class="mi">11</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">zEnd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">maxz</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span>
+    
+    <span class="n">ylocsM</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">minz</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span><span class="n">zEnd</span><span class="p">,</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">ylabelsM</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">ylocsM</span><span class="p">]</span>
+    <span class="n">yLabelsFt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">(</span><span class="n">ylocsM</span><span class="o">*</span><span class="mf">3.2808399</span><span class="p">)</span>
+
+    <span class="n">minFtyLabel</span> <span class="o">=</span> <span class="n">yLabelsFt</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+    <span class="n">maxFtyLabel</span> <span class="o">=</span> <span class="n">yLabelsFt</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+    <span class="n">yLabelsFtEven</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">maxFtyLabel</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="mi">20</span><span class="p">)</span>
+    
+
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">maxFtyLabel</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">maxFtyLabel</span><span class="p">:</span>
+        <span class="n">yLabelsFtEven</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">yLabelsFtEven</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">yLabelsFtEven</span><span class="p">),</span><span class="n">yLabelsFtEven</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">20</span><span class="p">)</span>
+    <span class="n">yLocs_FTinM</span> <span class="o">=</span> <span class="n">yLabelsFtEven</span> <span class="o">/</span> <span class="mf">3.2808399</span>
+
+    <span class="n">yLimsM</span> <span class="o">=</span> <span class="p">[</span><span class="n">ylocsM</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">maxz</span><span class="o">+</span><span class="mi">3</span><span class="p">]</span>
+    <span class="n">yLimsM</span> <span class="o">=</span> <span class="p">[</span><span class="n">minz</span><span class="p">,</span><span class="n">maxz</span><span class="o">+</span><span class="mi">3</span><span class="p">]</span>
+    <span class="n">yLimsFt</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">yLimsM</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="mf">3.2808399</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">yLimsM</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="mf">3.2808399</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span>
+
+    <span class="n">ax</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span><span class="n">topoDF</span><span class="p">[</span><span class="s1">&#39;xDist&#39;</span><span class="p">],</span><span class="n">topoDF</span><span class="p">[</span><span class="s1">&#39;Elevation&#39;</span><span class="p">],</span><span class="n">topoDF</span><span class="p">[</span><span class="s1">&#39;Elevation&#39;</span><span class="p">]</span><span class="o">+</span><span class="mi">10</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;w&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">topoDF</span><span class="p">[</span><span class="s1">&#39;xDist&#39;</span><span class="p">],</span><span class="n">topoDF</span><span class="p">[</span><span class="s1">&#39;Elevation&#39;</span><span class="p">],</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">topoDF</span><span class="p">[</span><span class="s1">&#39;xDist&#39;</span><span class="p">],</span><span class="n">topoDF</span><span class="p">[</span><span class="s1">&#39;Elevation&#39;</span><span class="p">],</span><span class="n">marker</span><span class="o">=</span><span class="s1">&#39;v&#39;</span><span class="p">,</span><span class="n">edgecolors</span><span class="o">=</span><span class="s1">&#39;w&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span><span class="n">s</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">showPoints</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">z</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="n">v</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;nipy_spectral&#39;</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">)</span>
+
+    <span class="n">xLimsM</span> <span class="o">=</span> <span class="p">[</span><span class="n">minx</span><span class="p">,</span><span class="n">maxx</span><span class="p">]</span>
+    <span class="n">xLimsFt</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">xLimsM</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="mf">3.2808399</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">xLimsM</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="mf">3.2808399</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="n">reverse</span><span class="p">:</span>
+        <span class="n">xLimsM</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+        <span class="n">xLimsFt</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+        <span class="c1">#xlocsM=np.flip(xlocsM)</span>
+        <span class="c1">#xLocs_FTinM=np.flip(xLocs_FTinM)</span>
+
+
+    <span class="k">if</span> <span class="n">primaryUnit</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;m&#39;</span><span class="p">,</span> <span class="s1">&#39;meters&#39;</span><span class="p">,</span> <span class="s1">&#39;meter&#39;</span><span class="p">,</span> <span class="s1">&#39;metres&#39;</span><span class="p">,</span> <span class="s1">&#39;metre&#39;</span><span class="p">,</span> <span class="s1">&#39;metric&#39;</span><span class="p">]:</span>
+        <span class="n">pUnit</span> <span class="o">=</span> <span class="s1">&#39;m&#39;</span>
+        <span class="n">pUnitXLocs</span> <span class="o">=</span> <span class="n">xlocsM</span>
+        <span class="n">pUnitYLocs</span> <span class="o">=</span> <span class="n">ylocsM</span>
+        <span class="n">pUnitXLabels</span> <span class="o">=</span> <span class="n">xlabelsM</span>
+        <span class="n">pUnitYLabels</span> <span class="o">=</span> <span class="n">ylabelsM</span>
+
+        <span class="n">sUnit</span> <span class="o">=</span> <span class="s1">&#39;ft&#39;</span>
+        <span class="n">sUnitXLocs</span> <span class="o">=</span> <span class="n">xLocs_FTinM</span>
+        <span class="n">sUnitYLocs</span> <span class="o">=</span> <span class="n">yLocs_FTinM</span>
+        <span class="n">sUnitXLabels</span> <span class="o">=</span> <span class="n">xLabelsFtEven</span>
+        <span class="n">sUnitYLabels</span> <span class="o">=</span> <span class="n">yLabelsFtEven</span>
+        <span class="n">__label_plot</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">gridM</span><span class="p">,</span> <span class="n">gridFt</span><span class="p">,</span> <span class="n">whichTicks</span><span class="p">,</span> <span class="n">primaryUnit</span><span class="p">,</span> <span class="n">pUnitXLocs</span><span class="p">,</span> <span class="n">pUnitYLocs</span><span class="p">,</span> <span class="n">pUnitXLabels</span><span class="p">,</span><span class="n">pUnitYLabels</span><span class="p">,</span> <span class="n">sUnit</span><span class="p">,</span> <span class="n">sUnitXLocs</span><span class="p">,</span> <span class="n">sUnitYLocs</span><span class="p">,</span> <span class="n">sUnitXLabels</span><span class="p">,</span> <span class="n">sUnitYLabels</span><span class="p">,</span> <span class="n">xLims</span><span class="o">=</span><span class="n">xLimsM</span><span class="p">,</span> <span class="n">yLims</span><span class="o">=</span><span class="n">yLimsM</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="n">t</span><span class="p">)</span>
+    
+    <span class="k">elif</span> <span class="n">primaryUnit</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="s1">&#39;ft&#39;</span><span class="p">,</span> <span class="s1">&#39;feet&#39;</span><span class="p">,</span> <span class="s1">&#39;foot&#39;</span><span class="p">,</span> <span class="s1">&#39;US&#39;</span><span class="p">]:</span>
+        <span class="n">pUnit</span> <span class="o">=</span> <span class="s1">&#39;ft&#39;</span>
+        <span class="n">pUnitXLocs</span> <span class="o">=</span> <span class="n">xLocs_FTinM</span>
+        <span class="n">pUnitYLocs</span> <span class="o">=</span> <span class="n">yLocs_FTinM</span>
+        <span class="n">pUnitXLabels</span> <span class="o">=</span> <span class="n">xLabelsFtEven</span>
+        <span class="n">pUnitYLabels</span> <span class="o">=</span> <span class="n">yLabelsFtEven</span>
+        
+        <span class="n">sUnit</span> <span class="o">=</span> <span class="s1">&#39;m&#39;</span>
+        <span class="n">sUnitXLocs</span> <span class="o">=</span> <span class="n">xlocsM</span>
+        <span class="n">sUnitYLocs</span> <span class="o">=</span> <span class="n">ylocsM</span>
+        <span class="n">sUnitXLabels</span> <span class="o">=</span> <span class="n">xlabelsM</span>
+        <span class="n">sUnitYLabels</span> <span class="o">=</span> <span class="n">ylabelsM</span>
+        <span class="n">__label_plot</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">gridM</span><span class="p">,</span> <span class="n">gridFt</span><span class="p">,</span> <span class="n">whichTicks</span><span class="p">,</span> <span class="n">primaryUnit</span><span class="p">,</span> <span class="n">pUnitXLocs</span><span class="p">,</span> <span class="n">pUnitYLocs</span><span class="p">,</span> <span class="n">pUnitXLabels</span><span class="p">,</span><span class="n">pUnitYLabels</span><span class="p">,</span> <span class="n">sUnit</span><span class="p">,</span> <span class="n">sUnitXLocs</span><span class="p">,</span> <span class="n">sUnitYLocs</span><span class="p">,</span> <span class="n">sUnitXLabels</span><span class="p">,</span> <span class="n">sUnitYLabels</span><span class="p">,</span> <span class="n">xLims</span><span class="o">=</span><span class="n">xLimsM</span><span class="p">,</span> <span class="n">yLims</span><span class="o">=</span><span class="n">yLimsM</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="n">t</span><span class="p">)</span>  
+    
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">pUnit</span> <span class="o">=</span> <span class="s1">&#39;m&#39;</span>
+        <span class="n">pUnitXLocs</span> <span class="o">=</span> <span class="n">xlocsM</span>
+        <span class="n">pUnitYLocs</span> <span class="o">=</span> <span class="n">ylocsM</span>
+        <span class="n">pUnitXLabels</span> <span class="o">=</span> <span class="n">xlabelsM</span>
+        <span class="n">pUnitYLabels</span> <span class="o">=</span> <span class="n">ylabelsM</span>
+
+        <span class="n">sUnit</span> <span class="o">=</span> <span class="s1">&#39;ft&#39;</span>
+        <span class="n">sUnitXLocs</span> <span class="o">=</span> <span class="n">xLocs_FTinM</span>
+        <span class="n">sUnitYLocs</span> <span class="o">=</span> <span class="n">yLocs_FTinM</span>
+        <span class="n">sUnitXLabels</span> <span class="o">=</span> <span class="n">xLabelsFtEven</span>
+        <span class="n">sUnitYLabels</span> <span class="o">=</span> <span class="n">yLabelsFtEven</span>
+        <span class="n">__label_plot</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">gridM</span><span class="p">,</span> <span class="n">gridFt</span><span class="p">,</span> <span class="n">whichTicks</span><span class="p">,</span> <span class="n">primaryUnit</span><span class="p">,</span> <span class="n">pUnitXLocs</span><span class="p">,</span> <span class="n">pUnitYLocs</span><span class="p">,</span> <span class="n">pUnitXLabels</span><span class="p">,</span><span class="n">pUnitYLabels</span><span class="p">,</span> <span class="n">sUnit</span><span class="p">,</span> <span class="n">sUnitXLocs</span><span class="p">,</span> <span class="n">sUnitYLocs</span><span class="p">,</span> <span class="n">sUnitXLabels</span><span class="p">,</span> <span class="n">sUnitYLabels</span><span class="p">,</span> <span class="n">xLims</span><span class="o">=</span><span class="n">xLimsM</span><span class="p">,</span> <span class="n">yLims</span><span class="o">=</span><span class="n">yLimsM</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="n">t</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">tight_layout</span><span class="p">:</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">top</span><span class="o">=</span><span class="mf">0.99</span><span class="p">,</span> <span class="n">bottom</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="mf">0.99</span><span class="p">,</span> 
+                    <span class="n">wspace</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">hspace</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">cBarOrient</span><span class="o">==</span><span class="s1">&#39;horizontal&#39;</span><span class="p">:</span>
+        <span class="n">aspect</span><span class="o">=</span><span class="mi">50</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">aspect</span><span class="o">=</span><span class="mi">25</span>
+    <span class="n">cbar</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span><span class="n">orientation</span><span class="o">=</span><span class="n">cBarOrient</span><span class="p">,</span> <span class="n">aspect</span><span class="o">=</span><span class="n">aspect</span><span class="p">,</span> <span class="n">extend</span><span class="o">=</span><span class="s1">&#39;both&#39;</span><span class="p">,</span><span class="n">ticks</span><span class="o">=</span><span class="n">cbarTicks</span><span class="p">,</span><span class="nb">format</span><span class="o">=</span><span class="n">cBarFormat</span><span class="p">)</span>
+    <span class="n">cbar</span><span class="o">.</span><span class="n">ax</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">labelsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span><span class="c1">#set_ticks(cbarTicks)</span>
+    <span class="n">cbar</span><span class="o">.</span><span class="n">set_label</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="n">cBarLabel</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+
+    <span class="n">ax_h</span><span class="p">,</span> <span class="n">ax_w</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">bbox</span><span class="o">.</span><span class="n">height</span><span class="p">,</span> <span class="n">ax</span><span class="o">.</span><span class="n">bbox</span><span class="o">.</span><span class="n">width</span>
+    <span class="n">axRatio</span> <span class="o">=</span> <span class="n">ax_w</span><span class="o">/</span><span class="n">ax_h</span>
+    <span class="n">aspRatio</span> <span class="o">=</span> <span class="p">(</span><span class="n">xLimsM</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">xLimsM</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="p">(</span><span class="n">yLimsM</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">yLimsM</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">vertExag</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">aspRatio</span><span class="o">/</span><span class="n">axRatio</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">iterNo</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;iterationNo&#39;</span><span class="p">]</span>
+    <span class="n">iterInd</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;iterationInd&#39;</span><span class="p">]</span>
+    <span class="n">iterErr</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;iterationDF&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">iterInd</span><span class="p">,</span> <span class="s1">&#39;%AbsError&#39;</span><span class="p">]</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">annotate</span><span class="p">(</span><span class="s1">&#39;Iteration </span><span class="si">{}</span><span class="se">\n</span><span class="s1">RMS Error: </span><span class="si">{}</span><span class="s1">%&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">iterNo</span><span class="p">,</span> <span class="n">iterErr</span><span class="p">),</span><span class="n">xy</span><span class="o">=</span><span class="p">(</span><span class="mf">0.02</span><span class="p">,</span><span class="mf">0.02</span><span class="p">),</span><span class="n">xycoords</span><span class="o">=</span><span class="s1">&#39;subfigure fraction&#39;</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s1">&#39;bottom&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">annotate</span><span class="p">(</span><span class="s1">&#39;Vert.Exag: &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">vertExag</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39;x&#39;</span><span class="p">,</span><span class="n">xy</span><span class="o">=</span><span class="p">(</span><span class="mf">0.98</span><span class="p">,</span><span class="mf">0.02</span><span class="p">),</span><span class="n">xycoords</span><span class="o">=</span><span class="s1">&#39;subfigure fraction&#39;</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span><span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s1">&#39;bottom&#39;</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">set_facecolor</span><span class="p">(</span><span class="s2">&quot;w&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span>
+
+<div class="viewcode-block" id="resinv_plot"><a class="viewcode-back" href="../InvPyplot.html#invplot.resinv_plot">[docs]</a><span class="k">def</span> <span class="nf">resinv_plot</span><span class="p">(</span><span class="n">inv_dict</span><span class="p">,</span><span class="n">colMap</span><span class="o">=</span><span class="s1">&#39;nipy_spectral&#39;</span><span class="p">,</span> <span class="n">cBarFormat</span> <span class="o">=</span><span class="s1">&#39;</span><span class="si">%3.0f</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">cBarLabel</span><span class="o">=</span><span class="s1">&#39;Resistivity (ohm-m)&#39;</span><span class="p">,</span> <span class="n">cBarOrientation</span><span class="o">=</span><span class="s1">&#39;horizontal&#39;</span><span class="p">,</span> <span class="n">cMin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cMax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">griddedFt</span><span class="o">=</span><span class="p">[</span><span class="kc">False</span><span class="p">,</span><span class="kc">False</span><span class="p">],</span> <span class="n">griddedM</span><span class="o">=</span><span class="p">[</span><span class="kc">False</span><span class="p">,</span><span class="kc">False</span><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">normType</span><span class="o">=</span><span class="s1">&#39;log&#39;</span><span class="p">,</span> <span class="n">primaryUnit</span><span class="o">=</span><span class="s1">&#39;m&#39;</span><span class="p">,</span> <span class="n">showPoints</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span><span class="n">whichTicks</span><span class="o">=</span><span class="s1">&#39;major&#39;</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">tight_layout</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">savefig</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">saveformat</span><span class="o">=</span><span class="s1">&#39;png&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Function to pull everything together and plot it nicely.</span>
+
+<span class="sd">    It is recommended to use the autoplot function rather than resinv_plot directly, since doing so will also set up all the input dictionary keys/values correctly.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    inv_dict : dict</span>
+<span class="sd">        Dictionary of inversion results generated from previous steps</span>
+<span class="sd">    colMap : str, optional</span>
+<span class="sd">        Colormap, any acceptable from matplotlib, by default &#39;nipy_spectral&#39;</span>
+<span class="sd">    cBarFormat : str, optional</span>
+<span class="sd">        Format string for colorbar tick labels, by default &#39;%3.0f&#39;</span>
+<span class="sd">    cBarLabel : str, optional</span>
+<span class="sd">        Colorbar label, by default &#39;Resistivity (ohm-m)&#39;</span>
+<span class="sd">    cBarOrientation : str {&#39;horizonta&#39;, &#39;vertical&#39;}, optional</span>
+<span class="sd">        Orientation of the colorbar, by default &#39;horizontal&#39;</span>
+<span class="sd">    cMin : float, optional</span>
+<span class="sd">        Minimum of colorbar/colormap, by default None, which uses the minimum value of the dataset.</span>
+<span class="sd">    cMax : float, optional</span>
+<span class="sd">        Maximum of colorbar/colormap, by default None, which uses the maximum value of the dataset.</span>
+<span class="sd">    griddedFt : list, optional</span>
+<span class="sd">        Whether to show gridlines on the feet ticks, first position is x, second position is y, by default [False,False]</span>
+<span class="sd">    griddedM : list, optional</span>
+<span class="sd">        Whether to show gridlines on the meter tickes, first position is x, second posistion is y, by default [False,False]</span>
+<span class="sd">    title : str, optional</span>
+<span class="sd">        String to show as the title, if desired to set manually, by default None, which shows the filename as the title</span>
+<span class="sd">    normType : str {&#39;log&#39;, &#39;linear&#39;}, optional</span>
+<span class="sd">        Normalization type, by default &#39;log&#39;. Determines whether matplotlib.colors.LogNorm or matplotlib.colors.Normalize is used for colormap.</span>
+<span class="sd">    primaryUnit : str {&#39;m&#39;, &#39;ft&#39;}, optional</span>
+<span class="sd">        Whether to display meters or feet as primary unit (this determines which unit is larger on the axis and is on the left and top), by default &#39;m&#39;</span>
+<span class="sd">    showPoints : bool, optional</span>
+<span class="sd">        Whether to show the datapoints used for interpolation, by default False</span>
+<span class="sd">    whichTicks : str {&#39;major&#39;, &#39;minor&#39;, &#39;both&#39;}, optional</span>
+<span class="sd">        If griddedFt or griddedM has any True, this determines whether major, minor, or both gridlines are used; by default &#39;major&#39;.</span>
+<span class="sd">    figsize : tuple, optional</span>
+<span class="sd">        Tuple (width, height) of the figsize, read into plt.rcParams[&#39;figure.figsize&#39;], by default None.</span>
+<span class="sd">    dpi : int or float, optional</span>
+<span class="sd">        Resolution (dots per square inch) of final figure, read into plt.rcParams[&#39;figure.dpi&#39;], by default None.</span>
+<span class="sd">    reverse : bool, optional</span>
+<span class="sd">        Whether to display the data in reverse (flipped along x) of what is read into from .inv file, by default False</span>
+<span class="sd">    tight_layout : bool, optional</span>
+<span class="sd">        If true, calls fig.tight_layout(). Otherwise, tries to maximize space on the figure using plt.subplots_adjust, by default True</span>
+<span class="sd">    savefig : bool, optional</span>
+<span class="sd">        If False, will not save figure. Otherwise, calls plt.savefig() and the value of this parameter will be used as the output filepath, by default False.</span>
+<span class="sd">    saveformat : str, optional</span>
+<span class="sd">        Read into plt.savefig(format) paramater, by default &#39;png&#39;.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        Returns existing inv_dict input, but with added keys of [&#39;fig&#39;] and [&#39;ax&#39;] containing a list of the fig and ax objects (list, since multiple iterations can be done at once)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">title</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">title</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;inv_file_Path&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">stem</span>
+    
+    <span class="k">if</span> <span class="s1">&#39;figure.dpi&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">inv_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+        <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;figure.dpi&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">250</span>
+    <span class="k">if</span> <span class="s1">&#39;figure.figsize&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">inv_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+        <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;figure.figsize&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">12</span><span class="p">,</span><span class="mi">5</span><span class="p">)</span>
+
+    <span class="n">x</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;resistModelDF&#39;</span><span class="p">][</span><span class="s1">&#39;x&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;resistModelDF&#39;</span><span class="p">][</span><span class="s1">&#39;zElev&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;resistModelDF&#39;</span><span class="p">][</span><span class="s1">&#39;Data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">figsize</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s1">&#39;figure.figsize&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;figure.figsize&#39;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;figure.figsize&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">figsize</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s1">&#39;figure.figsize&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">figsize</span>
+
+    <span class="k">if</span> <span class="n">dpi</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s1">&#39;figure.dpi&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;figure.dpi&#39;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;figure.dpi&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dpi</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s1">&#39;figure.dpi&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dpi</span>
+    
+    <span class="n">maxXDist</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float_</span><span class="p">(</span><span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;electrodes&#39;</span><span class="p">]))</span>
+
+    <span class="k">if</span> <span class="n">cMin</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">cMin</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;resistModelDF&#39;</span><span class="p">][</span><span class="s1">&#39;Data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">cMax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">cMax</span> <span class="o">=</span> <span class="n">inv_dict</span><span class="p">[</span><span class="s1">&#39;resistModelDF&#39;</span><span class="p">][</span><span class="s1">&#39;Data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+    
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+        <span class="n">v</span><span class="p">[</span><span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+
+    <span class="n">xi</span><span class="p">,</span> <span class="n">zi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">x</span><span class="p">))),</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">z</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">z</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">z</span><span class="p">)))</span>
+    <span class="n">xi</span><span class="p">,</span> <span class="n">zi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">xi</span><span class="p">,</span> <span class="n">zi</span><span class="p">)</span>
+
+    <span class="n">vi</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">interpolate</span><span class="o">.</span><span class="n">griddata</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">z</span><span class="p">),</span> <span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="n">xi</span><span class="p">,</span> <span class="n">zi</span><span class="p">))</span><span class="c1">#, method=&#39;linear&#39;)</span>
+
+    <span class="n">ptSize</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="mi">100</span> <span class="o">/</span> <span class="n">maxXDist</span> <span class="o">*</span> <span class="mi">35</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">cmap</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">binary</span>
+    <span class="n">my_cmap</span> <span class="o">=</span> <span class="n">cmap</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">cmap</span><span class="o">.</span><span class="n">N</span><span class="p">))</span>
+    <span class="n">my_cmap</span><span class="p">[:,</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="n">cmap</span><span class="o">.</span><span class="n">N</span><span class="p">)</span>
+    <span class="n">my_cmap</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">ListedColormap</span><span class="p">(</span><span class="n">my_cmap</span><span class="p">)</span>
+
+    <span class="n">vmax98</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="mi">98</span><span class="p">)</span>
+    <span class="n">vmin2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">minx</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">maxx</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">minz</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+    <span class="n">maxz</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+
+    <span class="n">vmax</span> <span class="o">=</span> <span class="n">cMax</span>
+    <span class="n">vmin</span> <span class="o">=</span> <span class="n">cMin</span>
+
+    <span class="c1">#if cMax &gt;= resistModelDF[&#39;Data&#39;].max():</span>
+    <span class="c1">#  vmax = vmax98</span>
+    <span class="c1">#else:</span>
+    <span class="c1">#  vmax = cMax</span>
+    <span class="c1">#if cMin &lt;= resistModelDF[&#39;Data&#39;].min():</span>
+    <span class="c1">#  vmin = vmin2</span>
+    <span class="c1">#else:</span>
+    <span class="c1">#  vmin = cMin</span>
+    <span class="c1">#cbarTicks = np.arange(np.round(vmin,-1),np.round(vmax-1)+1,10) </span>
+
+    <span class="k">if</span> <span class="n">normType</span><span class="o">==</span><span class="s1">&#39;log&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">vmin</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">vmin</span> <span class="o">=</span> <span class="mf">0.1</span>
+        <span class="n">norm</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">LogNorm</span><span class="p">(</span><span class="n">vmin</span> <span class="o">=</span> <span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span> <span class="o">=</span> <span class="n">vmax</span><span class="p">)</span>
+        <span class="c1">#cBarFormat = &#39;%.1e&#39;</span>
+        <span class="c1">#cbarTicks = np.logspace(np.log10(vmin),np.log10(vmax),num=10)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">norm</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">vmin</span> <span class="o">=</span> <span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span> <span class="o">=</span> <span class="n">vmax</span><span class="p">)</span>
+    
+    <span class="n">arStep</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">((</span><span class="n">vmax</span><span class="o">-</span><span class="n">vmin</span><span class="p">)</span><span class="o">/</span><span class="mi">10</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">cbarTicks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">vmin</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">vmax</span><span class="o">/</span><span class="mi">10</span><span class="p">)</span><span class="o">*</span><span class="mi">10</span><span class="p">,</span><span class="n">arStep</span><span class="p">)</span>
+
+    <span class="c1">#im = self.axes.imshow(vi, vmin=vmin, vmax=vmax, origin=&#39;lower&#39;,</span>
+    <span class="n">im</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">vi</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="s1">&#39;lower&#39;</span><span class="p">,</span>
+                <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="n">minx</span><span class="p">,</span> <span class="n">maxx</span><span class="p">,</span> <span class="n">minz</span><span class="p">,</span> <span class="n">maxz</span><span class="p">],</span>
+                <span class="n">aspect</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span>
+                <span class="n">cmap</span><span class="o">=</span><span class="n">colMap</span><span class="p">,</span>
+                <span class="n">norm</span> <span class="o">=</span> <span class="n">norm</span><span class="p">,</span>
+                <span class="n">interpolation</span><span class="o">=</span><span class="s1">&#39;spline36&#39;</span><span class="p">)</span>
+    <span class="n">f</span><span class="p">,</span> <span class="n">a</span> <span class="o">=</span> <span class="n">__plot_pretty</span><span class="p">(</span><span class="n">inv_dict</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span><span class="n">z</span><span class="p">,</span><span class="n">v</span><span class="p">,</span><span class="n">fig</span><span class="o">=</span><span class="n">fig</span><span class="p">,</span><span class="n">im</span><span class="o">=</span><span class="n">im</span><span class="p">,</span><span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">,</span><span class="n">colMap</span><span class="o">=</span><span class="n">colMap</span><span class="p">,</span><span class="n">cMin</span><span class="o">=</span><span class="n">cMin</span><span class="p">,</span><span class="n">cMax</span><span class="o">=</span><span class="n">cMax</span><span class="p">,</span> 
+                       <span class="n">gridM</span><span class="o">=</span><span class="n">griddedM</span><span class="p">,</span> <span class="n">gridFt</span><span class="o">=</span><span class="n">griddedFt</span><span class="p">,</span> <span class="n">primaryUnit</span><span class="o">=</span><span class="n">primaryUnit</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">tight_layout</span><span class="o">=</span><span class="n">tight_layout</span><span class="p">,</span>
+                       <span class="n">cbarTicks</span><span class="o">=</span><span class="n">cbarTicks</span><span class="p">,</span><span class="n">cBarFormat</span><span class="o">=</span><span class="n">cBarFormat</span><span class="p">,</span><span class="n">cBarLabel</span><span class="o">=</span><span class="n">cBarLabel</span><span class="p">,</span><span class="n">cBarOrient</span><span class="o">=</span><span class="n">cBarOrientation</span><span class="p">,</span>
+                       <span class="n">showPoints</span><span class="o">=</span><span class="n">showPoints</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span> <span class="n">whichTicks</span><span class="o">=</span><span class="n">whichTicks</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="n">reverse</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">savefig</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">savefig</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="n">saveformat</span><span class="p">,</span> <span class="n">facecolor</span><span class="o">=</span><span class="s1">&#39;white&#39;</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">f</span><span class="p">,</span> <span class="n">a</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Riley Balikian.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
