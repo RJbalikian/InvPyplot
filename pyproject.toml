@@ -1,3 +1,12 @@
 [build-system]
-requires = ["numpy", "pandas", "matplotlib", "scipy"]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = 'InvPyplot'
+version="1.0"
+description = "Python package enabling plotting of .inv files exported from Res2DInv in matplotlib"
+authors = 'Riley Balikian'
+license="MIT"
+requires-python = ">=3.0"
+dependencies =  ["numpy", "pandas", "matplotlib", "scipy"]
