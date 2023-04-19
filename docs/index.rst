@@ -11,11 +11,9 @@ Welcome to invplot's documentation!
    :caption: Contents:
 
    modules
-   InvPyplot
 
 Indices and tables
 ==================
 
 * :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`
