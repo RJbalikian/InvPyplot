@@ -1,7 +1,6 @@
 # InvPyplot
 Plot Res2DInv .inv files in matplotlib
 
-This package makes it easy to read and plot .inv files using the customization available through matplotlib.
+This package makes it easy to read and plot .inv files using customizations available through matplotlib.
 
-Read the docstrings for the autoplot and resinv_plot functions for how to customize.
-
+API Documentation here: https://invpyplot.readthedocs.io/en/latest/InvPyplot.html
