@@ -1,5 +1,3 @@
-import invplot
-
 from invplot import(
                 autoplot,
                 ingest_inv,
@@ -13,8 +11,7 @@ from invplot import(
                 resinv_plot
                 )
 
-__all__ = ( 'invplot',
-            'autoplot',
+__all__ = ( 'autoplot',
             'ingest_inv',
             'read_inv_data',
             'read_inv_data_other',
