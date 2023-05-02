@@ -9,7 +9,7 @@ import pandas as pd
 import scipy.interpolate
 import matplotlib
 
-def autoplot(inv_file, iteration, verbose=False, **kwargs):
+def autoplot(inv_file, iteration, return_dict=False, **kwargs):
     """Function to run all intermedaite functions and resinv_plot to simply read and plot everything in one call.
 
     Parameters
@@ -18,8 +18,8 @@ def autoplot(inv_file, iteration, verbose=False, **kwargs):
         Filepath to .inv file of interest. The .inv file should be one generated from Res2DInv.
     iteration : int or list or either str {':', 'all'}
         Integer or list of integers indicating which iteration of the .inv result to use for plotting. If list, all will be plotted separately. If ':' or 'all', will plot all iterations successively.
-    verbose : bool, optional
-        Whether to print results out to terminal along the way, by default False
+    return_dict : bool, optional
+        Whether to return results as a dictionary, by default False
     **kwargs
         Other keyword arguments may be read into autoplot. These are read in as **kwargs to either resinv_plot() or matplotlib.pyplot.imshow via the resinv_plot function. See documentation for resinv_plot for available parameters for resinv_plot.
 
@@ -79,7 +79,9 @@ def autoplot(inv_file, iteration, verbose=False, **kwargs):
     inv_dict['fig'] = figList
     inv_dict['ax'] = axList
     
-    return inv_dict
+    if return_dict:
+        return inv_dict
+    return
 
 #Function that performs all the actual plotting
 def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel='Resistivity (ohm-m)', cBarOrientation='horizontal', cMin=None, cMax=None, griddedFt=[False,False], griddedM=[False,False], title=None, normType='log', primaryUnit='m', showPoints=False,whichTicks='major', figsize=None, dpi=None, reverse=False, tight_layout=True, savefig=False, saveformat='png', imshow_kwargs=None, **kwargs):
