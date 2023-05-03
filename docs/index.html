@@ -37,7 +37,7 @@ import pandas as pd
 import scipy.interpolate
 import matplotlib
 
-def autoplot(inv_file, iteration, verbose=False, **kwargs):
+def autoplot(inv_file, iteration, return_dict=False, **kwargs):
     &#34;&#34;&#34;Function to run all intermedaite functions and resinv_plot to simply read and plot everything in one call.
 
     Parameters
@@ -46,15 +46,15 @@ def autoplot(inv_file, iteration, verbose=False, **kwargs):
         Filepath to .inv file of interest. The .inv file should be one generated from Res2DInv.
     iteration : int or list or either str {&#39;:&#39;, &#39;all&#39;}
         Integer or list of integers indicating which iteration of the .inv result to use for plotting. If list, all will be plotted separately. If &#39;:&#39; or &#39;all&#39;, will plot all iterations successively.
-    verbose : bool, optional
-        Whether to print results out to terminal along the way, by default False
+    return_dict : bool, optional
+        Whether to return results as a dictionary, by default False
     **kwargs
         Other keyword arguments may be read into autoplot. These are read in as **kwargs to either resinv_plot() or matplotlib.pyplot.imshow via the resinv_plot function. See documentation for resinv_plot for available parameters for resinv_plot.
 
     Returns
     -------
     inv_dict : dict
-        Dictionary containing all input parameters and data generated along the way, including the output figures and axes
+        If return_dict set to True, Dictionary containing all input parameters and data generated along the way, including the output figures and axes
 
     &#34;&#34;&#34;
     if isinstance(inv_file, pathlib.PurePath):
@@ -107,7 +107,9 @@ def autoplot(inv_file, iteration, verbose=False, **kwargs):
     inv_dict[&#39;fig&#39;] = figList
     inv_dict[&#39;ax&#39;] = axList
     
-    return inv_dict
+    if return_dict:
+        return inv_dict
+    return
 
 #Function that performs all the actual plotting
 def resinv_plot(inv_dict, colMap=&#39;nipy_spectral&#39;, cBarFormat =&#39;%3.0f&#39;, cBarLabel=&#39;Resistivity (ohm-m)&#39;, cBarOrientation=&#39;horizontal&#39;, cMin=None, cMax=None, griddedFt=[False,False], griddedM=[False,False], title=None, normType=&#39;log&#39;, primaryUnit=&#39;m&#39;, showPoints=False,whichTicks=&#39;major&#39;, figsize=None, dpi=None, reverse=False, tight_layout=True, savefig=False, saveformat=&#39;png&#39;, imshow_kwargs=None, **kwargs):
@@ -971,7 +973,7 @@ def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colMap=&#39;jet&#39;,cMin
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="invplot.autoplot"><code class="name flex">
-<span>def <span class="ident">autoplot</span></span>(<span>inv_file, iteration, verbose=False, **kwargs)</span>
+<span>def <span class="ident">autoplot</span></span>(<span>inv_file, iteration, return_dict=False, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Function to run all intermedaite functions and resinv_plot to simply read and plot everything in one call.</p>
@@ -981,8 +983,8 @@ def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colMap=&#39;jet&#39;,cMin
 <dd>Filepath to .inv file of interest. The .inv file should be one generated from Res2DInv.</dd>
 <dt><strong><code>iteration</code></strong> :&ensp;<code>int</code> or <code>list</code> or <code>either str {':', 'all'}</code></dt>
 <dd>Integer or list of integers indicating which iteration of the .inv result to use for plotting. If list, all will be plotted separately. If ':' or 'all', will plot all iterations successively.</dd>
-<dt><strong><code>verbose</code></strong> :&ensp;<code>bool</code>, optional</dt>
-<dd>Whether to print results out to terminal along the way, by default False</dd>
+<dt><strong><code>return_dict</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether to return results as a dictionary, by default False</dd>
 <dt><strong><code>**kwargs</code></strong></dt>
 <dd>Other keyword arguments may be read into autoplot. These are read in as **kwargs to either resinv_plot() or matplotlib.pyplot.imshow via the resinv_plot function. See documentation for resinv_plot for available parameters for resinv_plot.</dd>
 </dl>
@@ -995,7 +997,7 @@ def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colMap=&#39;jet&#39;,cMin
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def autoplot(inv_file, iteration, verbose=False, **kwargs):
+<pre><code class="python">def autoplot(inv_file, iteration, return_dict=False, **kwargs):
     &#34;&#34;&#34;Function to run all intermedaite functions and resinv_plot to simply read and plot everything in one call.
 
     Parameters
@@ -1004,8 +1006,8 @@ def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colMap=&#39;jet&#39;,cMin
         Filepath to .inv file of interest. The .inv file should be one generated from Res2DInv.
     iteration : int or list or either str {&#39;:&#39;, &#39;all&#39;}
         Integer or list of integers indicating which iteration of the .inv result to use for plotting. If list, all will be plotted separately. If &#39;:&#39; or &#39;all&#39;, will plot all iterations successively.
-    verbose : bool, optional
-        Whether to print results out to terminal along the way, by default False
+    return_dict : bool, optional
+        Whether to return results as a dictionary, by default False
     **kwargs
         Other keyword arguments may be read into autoplot. These are read in as **kwargs to either resinv_plot() or matplotlib.pyplot.imshow via the resinv_plot function. See documentation for resinv_plot for available parameters for resinv_plot.
 
@@ -1065,7 +1067,9 @@ def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colMap=&#39;jet&#39;,cMin
     inv_dict[&#39;fig&#39;] = figList
     inv_dict[&#39;ax&#39;] = axList
     
-    return inv_dict</code></pre>
+    if return_dict:
+        return inv_dict
+    return</code></pre>
 </details>
 </dd>
 <dt id="invplot.get_resistivitiy_model"><code class="name flex">
