@@ -26,7 +26,7 @@ def autoplot(inv_file, iteration, return_dict=False, **kwargs):
     Returns
     -------
     inv_dict : dict
-        Dictionary containing all input parameters and data generated along the way, including the output figures and axes
+        If return_dict set to True, dictionary containing all input parameters and data generated along the way, including the output figures and axes
 
     """
     if isinstance(inv_file, pathlib.PurePath):
