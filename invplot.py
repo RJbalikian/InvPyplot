@@ -293,25 +293,33 @@ def ingest_inv(inv_file, verbose=True, show_iterations=True):
     layerDepths = []
     noLayerRow = -1
     blockRow = -1
-    layerRow = -1
     layerInfoRow = -1
     resistDF = pd.DataFrame()
-    dataList = []
     noPoints = []
     calcResistivityRowList = []
     refResistRow=-1
     topoDataRow = -1
     iterationsInfoRow = -1
 
+    inv_dict = {
+        'inv_file_Path':inv_file,
+        'fileHeader':fileHeader,
+        'iterationStartRowList':iterationStartRowList,
+        'layerRowList':layerRowList, 
+        'layerDepths':layerDepths
+        }
+
+    inv_dict['headerOrder'] = []
+    headerIndex = 0 
+    layerNo = 0
     with open(str(inv_file)) as datafile: 
         filereader = csv.reader(datafile)
         for row in enumerate(filereader):
             startLayer = 0
             endLayer = 0
             lay = -1
-            #print(row[0])
+
             if row[0] <= 8:
-               
                 if len(row[1])>1:
                     fileHeader.append(row[1][0]+', '+row[1][1])
                     continue
@@ -321,21 +329,29 @@ def ingest_inv(inv_file, verbose=True, show_iterations=True):
                 
             if 'NUMBER OF LAYERS' in str(row[1]):
                 noLayerRow = row[0]+1
+                inv_dict['noLayerRow'] = noLayerRow
+                inv_dict['headerOrder'].append('NUMBER OF LAYERS')
                 continue
+
             if row[0] == noLayerRow:
                 noLayers = int(row[1][0])
+                inv_dict['noLayers'] = noLayers
                 layerList = np.linspace(1,noLayers, noLayers)
                 continue
             
             if 'NUMBER OF BLOCKS' in str(row[1]):
                 blockRow = row[0]+1
+                inv_dict['blockRow'] = blockRow
+                inv_dict['headerOrder'].append('NUMBER OF BLOCKS')
                 continue
             if row[0]==blockRow:
                 noBlocks = int(row[1][0])
+                inv_dict['noLayerRow'] = noBlocks
                 continue
 
             if 'ITERATION' in str(row[1]):
                 iterationStartRowList.append(row[0]) #Add row of iteration to iterationStartRowList
+                inv_dict['headerOrder'].append('ITERATION')
                 continue
 
             if 'LAYER ' in str(row[1]):
@@ -345,7 +361,11 @@ def ingest_inv(inv_file, verbose=True, show_iterations=True):
                 else:
                     layerRowList[iterInd].append(row[0])
                 layerInfoRow = row[0]+1
+                inv_dict['layerInfoRow'] = layerInfoRow
+                inv_dict['headerOrder'].append('LAYER {}'.format(layerNo))
+                layerNo += 1
                 continue
+
             if row[0]==layerInfoRow:
                 noPoints.append(int(row[1][0].strip()))
                 layerDepths.append(row[1][1].strip())
@@ -353,64 +373,96 @@ def ingest_inv(inv_file, verbose=True, show_iterations=True):
             
             if 'CALCULATED APPARENT RESISTIVITY' in str(row[1]):
                 calcResistivityRowList.append(row[0])
+                inv_dict['headerOrder'].append('CALCULATED APPARENT RESISTIVITY')
                 continue
             
             if 'Reference resistivity is' in str(row[1]):
                 refResistRow = row[0]+1 
+                inv_dict['refResistRow'] = refResistRow
+                inv_dict['headerOrder'].append('Reference resistivity')
                 continue
             
             if row[0]==refResistRow:
                 refResist = float(row[1][0].strip())
+                inv_dict['refResist'] = refResist
                 continue
             
             if 'TOPOGRAPHICAL DATA' in str(row[1]):
                 topoDataRow = row[0]
+                inv_dict['topoDataRow'] = topoDataRow
+                inv_dict['headerOrder'].append('TOPOGRAPHICAL DATA')
                 continue
             if row[0]==topoDataRow+2:
                 noTopoPts = int(row[1][0].strip())
+                inv_dict['noTopoPts'] = noTopoPts
                 continue
 
             if 'COORDINATES FOR ELECTRODES' in str(row[1]):
                 electrodeCoordsRow = row[0]
+                inv_dict['electrodeCoordsRow'] = electrodeCoordsRow
+                inv_dict['headerOrder'].append('COORDINATES FOR ELECTRODES')
                 continue
 
             if 'Shift matrix' in str(row[1]):
                 shiftMatrixRow = row[0]
+                inv_dict['shiftMatrixRow'] = shiftMatrixRow
+                inv_dict['headerOrder'].append('Shift matrix')
                 continue
 
-            if 'Blocks sensitivity and uncertainity values (with smoothness constrain)' in str(row[1]):
+            if 'Blocks sensitivity' in str(row[1]):
                 sensAndUncertainRow = row[0]
+                inv_dict['sensAndUncertainRow'] = sensAndUncertainRow
+                inv_dict['headerOrder'].append('Blocks sensitivity')
                 continue
 
             if 'Error Distribution' in str(row[1]):
                 errorDistRow = row[0] #no of data points
+                inv_dict['errorDistRow'] = errorDistRow
+                inv_dict['headerOrder'].append('Error Distribution')
                 continue
 
             if 'Total Time' in str(row[1]):
                 iterationsInfoRow=row[0]
                 iterDataList = []
+                inv_dict['iterationsInfoRow'] = iterationsInfoRow
+                inv_dict['headerOrder'].append('Total Time')
                 continue
             
             if iterationsInfoRow > 1:
                 if row[1] == []:
                     print('   ')
                     noIterations = row[0]-iterationsInfoRow-1
+                    inv_dict['noIterations'] = noIterations
                     break
                 iterDataList.append(row[1][0].split())
+
+    #After loop, fill in dict entries
+    inv_dict['calcResistivityRowList'] = calcResistivityRowList
+    inv_dict['iterDataList'] = iterDataList
+    inv_dict['layerRowList']= layerRowList
+    inv_dict['iterationStartRowList']= iterationStartRowList
+
 
     layerDepths = layerDepths[0:noLayers]
     layerDepths[noLayers-1] = float(layerDepths[(noLayers-2)])+(float(layerDepths[noLayers-2])-float(layerDepths[noLayers-3]))
     layerDepths = [float(x) for x in layerDepths]
+    inv_dict['layerDepths'] = layerDepths
 
     noPoints = noPoints[0:noLayers]
+    inv_dict['noPoints'] = noPoints
 
     keyList=['Name', 'NomElectrodeSpacing', 'ArrayCode', 'ProtocolCode', 'MeasureHeader', 'MeasureType', 'NoDataPoints','DistanceType','FinalFlag']
 
     global fileHeaderDict
     fileHeaderDict = dict(zip(keyList, fileHeader))
+    inv_dict['fileHeaderDict'] = fileHeaderDict
+
     noDataPoints = int(fileHeaderDict['NoDataPoints'])
+    inv_dict['noDataPoints'] = noDataPoints
+
     iterationDF = pd.DataFrame(iterDataList, columns=['Iteration',  'Time for this iteration', 'Total Time', '%AbsError'])
     iterationDF = iterationDF.apply(pd.to_numeric)
+    inv_dict['iterationDF'] = iterationDF
 
     if verbose:
         print(iterationDF)
@@ -422,34 +474,6 @@ def ingest_inv(inv_file, verbose=True, show_iterations=True):
         ax1.set_xticks(np.arange(0,iterationDF['Iteration'].max()+1))
         ax1.get_legend().remove()
         plt.show(fig1)
-
-    inv_dict = {
-        'inv_file_Path':inv_file,
-        'fileHeader':fileHeader,
-        'iterationStartRowList':iterationStartRowList,
-        'layerRowList':layerRowList, 
-        'layerDepths':layerDepths,
-        'noLayerRow':noLayerRow,
-        'blockRow':blockRow ,
-        'layerRow':layerRow ,
-        'layerInfoRow':layerInfoRow ,
-        'resistDF':resistDF,
-        'dataList':dataList,
-        'noPoints':noPoints,
-        'calcResistivityRowList':calcResistivityRowList ,
-        'refResistRow':refResistRow,
-        'topoDataRow':topoDataRow,
-        'iterationsInfoRow':iterationsInfoRow,
-        'iterationDF':iterationDF,
-        'noIterations':noIterations,
-        'noDataPoints':noDataPoints,
-        'shiftMatrixRow':shiftMatrixRow,
-        'electrodeCoordsRow':electrodeCoordsRow,
-        'noTopoPts':noTopoPts,
-        'sensAndUncertainRow':sensAndUncertainRow,
-        'noModelBlocks':[],
-        'errorDistRow':errorDistRow,
-        'fileHeaderDict':fileHeaderDict}
     
     return inv_dict
 
@@ -527,36 +551,49 @@ def read_inv_data_other(inv_file, inv_dict, iteration_no=None):
     inv_dict['iterationNo'] = iteration_no
     inv_dict['iterationInd'] = iterationInd
 
-
     invDF = inv_dict['resistDF']
     layerRowList = inv_dict['layerRowList']
     noPoints = inv_dict['noPoints']
     layerDepths = inv_dict['layerDepths']
-    shiftMatrixRow = inv_dict['shiftMatrixRow']
-    electrodeCoordsRow = inv_dict['electrodeCoordsRow']
-    topoDataRow = inv_dict['topoDataRow']
-    noTopoPts = inv_dict['noTopoPts']
+    if 'shiftMatrixRow' in inv_dict.keys():
+        shiftMatrixRow = inv_dict['shiftMatrixRow']
+        electrodeCoordsRow = inv_dict['electrodeCoordsRow']
+        topoDataRow = inv_dict['topoDataRow']
+        noTopoPts = inv_dict['noTopoPts']
+        use_topo=True
+    else:
+        use_topo=False
     sensAndUncertainRow = inv_dict['sensAndUncertainRow']
 
     #Get Electrodes
     electrodes= pd.concat([invDF['A(x)'],invDF['B(x)'], invDF['M(x)'], invDF['B(x)'], invDF['N(x)']],ignore_index=True)
     electrodes.reset_index(inplace=True, drop=True)
-    electrodes = electrodes.unique()
+    electrodes = electrodes.unique().astype(np.float32)
     inv_dict['electrodes'] = electrodes
-
+    
     #ElectrodeCoordinates
-    noModelElects = shiftMatrixRow-electrodeCoordsRow-1
-    electrodeCoordsDF = pd.read_table(inv_file,skiprows=electrodeCoordsRow,nrows=noModelElects, sep='\s+')
-    electrodeCoordsDF.dropna(axis=1,inplace=True)
-    electrodeCoordsDF.columns=['xDist','RelElevation']
-    electrodeCoordsDF['ElectrodeNo'] = electrodeCoordsDF.index+1
+    if use_topo:
+        noModelElects = shiftMatrixRow-electrodeCoordsRow-1
+        electrodeCoordsDF = pd.read_table(inv_file,skiprows=electrodeCoordsRow,nrows=noModelElects, sep='\s+')
+        electrodeCoordsDF.dropna(axis=1,inplace=True)
+        electrodeCoordsDF.columns=['xDist','RelElevation']
+        electrodeCoordsDF['ElectrodeNo'] = electrodeCoordsDF.index+1
+    else:
+        electrodeCoordsDF = pd.DataFrame({'xDist':electrodes})
+        electrodeCoordsDF['RelElevation'] = 0.0
+        electrodeCoordsDF['ElectrodeNo'] = electrodeCoordsDF.index+1       
     inv_dict['electrodeCoordsDF'] = electrodeCoordsDF
 
     #Topographical Data
-    topoDF = pd.read_table(inv_file,skiprows=topoDataRow+2,nrows=noTopoPts, sep='\s+')
-    topoDF.reset_index(inplace=True)
-    topoDF.columns=['xDist','Elevation']
-    topoDF['ElectrodeNo'] = topoDF.index+1
+    if use_topo:
+        topoDF = pd.read_table(inv_file,skiprows=topoDataRow+2,nrows=noTopoPts, sep='\s+')
+        topoDF.reset_index(inplace=True)
+        topoDF.columns=['xDist','Elevation']
+        topoDF['ElectrodeNo'] = topoDF.index+1
+    else:
+        topoDF = pd.DataFrame({'xDist':electrodes})
+        topoDF['Elevation'] = 0
+        topoDF['ElectrodeNo'] = topoDF.index+1
     inv_dict['topoDF'] = topoDF
 
     #Resistivity Model
@@ -569,16 +606,18 @@ def read_inv_data_other(inv_file, inv_dict, iteration_no=None):
         currDF['z'] = layerDepth
         resistModelDF= pd.concat([resistModelDF,currDF],ignore_index=True).copy()
     resistModelDF.reset_index(inplace=True, drop=True)
+
     noModelBlocks=resistModelDF.shape[0]
     inv_dict['resistModelDF'] = resistModelDF
     inv_dict['noModelBlocks'] = noModelBlocks
 
     #Shift Matrix
-    shiftMatrixDF = pd.read_table(inv_file,skiprows=shiftMatrixRow+1,nrows=noModelElects, sep='\s+',header=None,index_col=0)
-    shiftMatrixDF.dropna(axis=1,inplace=True)
-    for c in shiftMatrixDF:
-        shiftMatrixDF.rename(columns={c:'Layer'+str(int(c)-1)},inplace=True)
-    inv_dict['shiftMatrixDF'] = shiftMatrixDF
+    if use_topo:
+        shiftMatrixDF = pd.read_table(inv_file,skiprows=shiftMatrixRow+1,nrows=noModelElects, sep='\s+',header=None,index_col=0)
+        shiftMatrixDF.dropna(axis=1,inplace=True)
+        for c in shiftMatrixDF:
+            shiftMatrixDF.rename(columns={c:'Layer'+str(int(c)-1)},inplace=True)
+        inv_dict['shiftMatrixDF'] = shiftMatrixDF #Not currently using this
 
     #Sensitivity
     sensDF = pd.read_table(inv_file,skiprows=sensAndUncertainRow+3,nrows=noModelBlocks, sep='\s+',header=None,index_col=0)
