@@ -824,7 +824,7 @@ def __label_plot(fig, ax, gridM, gridFt, whichTicks, pUnit, pUnitXLocs, pUnitYLo
             ax3.grid(axis='y',alpha=0.5, c='k', which=whichTicks)
 
 #Helper function for resinv_plot
-def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colMap='jet',cMin=None,cMax=None, gridFt=[False,False], gridM=[False,False], t='', primaryUnit='m', tight_layout=True, cBarOrient='vertical', cBarFormat ='%3.0f',cBarLabel ='Resistivity (ohm-m)', showPoints=False, norm=0, whichTicks='major', reverse=False):
+def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colMap='nipy_spectral',cMin=None,cMax=None, gridFt=[False,False], gridM=[False,False], t='', primaryUnit='m', tight_layout=True, cBarOrient='vertical', cBarFormat ='%3.0f',cBarLabel ='Resistivity (ohm-m)', showPoints=False, norm=0, whichTicks='major', reverse=False):
     """Helper function for resinv_plot, parameters derived from there."""
 
     topoDF = inv_dict['topoDF']
