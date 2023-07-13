@@ -84,7 +84,7 @@ def autoplot(inv_file, iteration, return_dict=False, **kwargs):
     return
 
 #Function that performs all the actual plotting
-def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel='Resistivity (ohm-m)', cBarOrientation='horizontal', cMin=None, cMax=None, griddedFt=[False,False], griddedM=[False,False], title=None, normType='log', primaryUnit='m', showPoints=False,whichTicks='major', figsize=None, dpi=None, reverse=False, tight_layout=True, savefig=False, saveformat='png', imshow_kwargs=None, **kwargs):
+def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel='Resistivity (ohm-m)', cBarOrientation='horizontal', cMin=None, cMax=None, griddedFt=[False,False], griddedM=[False,False], title=None, normType='log', primaryUnit='m', showPoints=False,whichTicks='major', figsize=None, dpi=None, reverse=False, tight_layout=True, savefig=False, saveformat='png', **imshow_kwargs):
     """Function to pull everything together and plot it nicely.
 
     It is recommended to use the autoplot function rather than resinv_plot directly, since using autoplot() incorporates all the setup needed to create the input dictionary keys/values correctly.
@@ -131,6 +131,8 @@ def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel
         If False, will not save figure. Otherwise, calls plt.savefig() and the value of this parameter will be used as the output filepath, by default False.
     saveformat : str, optional
         Read into plt.savefig(format) paramater, by default 'png'.
+    **imshow_kwargs
+        Any extra specified keyword arguments are passed directly to matplotlib.pyplot.imshow
 
     Returns
     -------
