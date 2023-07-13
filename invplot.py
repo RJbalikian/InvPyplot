@@ -84,7 +84,7 @@ def autoplot(inv_file, iteration, return_dict=False, **kwargs):
     return
 
 #Function that performs all the actual plotting
-def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel='Resistivity (ohm-m)', cBarOrientation='horizontal', cMin=None, cMax=None, griddedFt=[False,False], griddedM=[False,False], title=None, normType='log', primaryUnit='m', showPoints=False,whichTicks='major', figsize=None, dpi=None, reverse=False, tight_layout=True, savefig=False, saveformat='png', **imshow_kwargs):
+def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel='Resistivity (ohm-m)', cBarOrientation='horizontal', cMin=None, cMax=None, griddedFt=[False,False], griddedM=[False,False], title=None, normType='log', primaryUnit='m', showPoints=False,whichTicks='major', figsize=None, dpi=None, reverse=False, tight_layout=True, savefig=False, saveformat='png', imshow_kwargs={}, **kwargs):
     """Function to pull everything together and plot it nicely.
 
     It is recommended to use the autoplot function rather than resinv_plot directly, since using autoplot() incorporates all the setup needed to create the input dictionary keys/values correctly.
@@ -247,7 +247,9 @@ def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel
         imshow_kwargs.pop('interpolation', None)
     else:
         interp='spline36'   
-    
+
+    imshow_kwargs.pop('imshow_kwargs', None)
+
     im = axes.imshow(vi, origin='lower',
                 extent=extent,
                 aspect=aspect,
