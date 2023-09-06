@@ -38,7 +38,9 @@ def autoplot(inv_file, iteration, return_dict=False, instrument='LS', **kwargs):
     inv_dict = read_inv_data(inv_file=inv_file, instrument=instrument, inv_dict=inv_dict)
 
     allIterList = [':', 'all']
-    if type(iteration) is int:
+    if type(iteration) is list:
+        pass
+    elif type(iteration) is int:
         iteration = [iteration]
     elif iteration.lower() in allIterList:
         iteration = inv_dict['iterationDF'].Iteration.tolist()
@@ -66,7 +68,7 @@ def autoplot(inv_file, iteration, return_dict=False, instrument='LS', **kwargs):
         inv_dict['iterationInd'] = iterInd
         inv_dict = read_inv_data_other(inv_file=inv_file, inv_dict=inv_dict, iteration_no=iterNo)
         inv_dict = read_error_data(inv_file=inv_file, inv_dict=inv_dict)
-        inv_dict = get_resistivitiy_model(inv_file=inv_file, inv_dict=inv_dict)
+        inv_dict = get_resistivitiy_model(inv_file=inv_file, inv_dict=inv_dict, instrument=instrument)
         fig, ax = resinv_plot(inv_dict=inv_dict, imshow_kwargs=imshow_kwargs, **kwargs)
 
         iterIndList.append(i)
@@ -319,7 +321,7 @@ def ingest_inv(inv_file, instrument='LS', verbose=True, show_iterations=True):
             startLayer = 0
             endLayer = 0
             lay = -1
-            #print(row[0])
+
             global fileHeaderRows
             if instrument.lower() in sasList:
                 fileHeaderRows = 5
@@ -529,6 +531,10 @@ def read_inv_data(inv_file, inv_dict, instrument='LS'):
     inDF = pd.DataFrame(inDataList)
     if startRow == 9:
         inDF.drop([0],inplace=True,axis=1)
+        
+    if inDF.shape[1] > 10:
+        inDF = inDF.loc[:,0:10]
+    inDF.replace(r'^\s*$', np.nan, regex=True, inplace=True)
     inDF.astype(np.float64)
     inDF.columns = inDF_cols
 
@@ -552,7 +558,7 @@ def read_inv_data(inv_file, inv_dict, instrument='LS'):
         inDF = inDF[['NoElectrodes', 'A(x)', 'A(z)', 'B(x)', 'B(z)', 'M(x)', 'M(z)', 'N(x)', 'N(z)', 'Data']]
         
     inv_dict['resistDF']  = inDF
-    
+
     return inv_dict
 
 #Read other important inversion data
@@ -769,26 +775,25 @@ def get_resistivitiy_model(inv_file, inv_dict, instrument='LS'):
         
         currDF = pd.read_table(inv_file, skiprows=r[1]+1, nrows=noPtsInLyr, sep=',')
         #Clean up reading of table
-
         #Last line "x" value is blank, so make sure what is read in as x is actually data
         currDF.iloc[currDF.shape[0]-1,1] =  currDF.iloc[currDF.shape[0]-1,0]
         #Add in an "x" value for the last point (since we're making it tabular)
         currDF.iloc[currDF.shape[0]-1,0] = currDF.iloc[currDF.shape[0]-2,0]+1
         
         if instrument.lower() in sasList:
-            
             currDF.columns = ['xDist','Data']
-            
-        currDF.columns=['ElectrodeNo','Data']
+        else:
+            currDF.columns=['ElectrodeNo','Data']
+    
         currDF['zDepth'] = layerDepth
 
         for i in currDF.index:
-            if instrument in lsList:
+            if instrument.lower() in lsList:
                 lowerElecNo = currDF.loc[i,'ElectrodeNo']#-1
                 elecInd = electrodeCoordsDF.loc[electrodeCoordsDF['ElectrodeNo']==lowerElecNo].index.values[0]
                 currDF.loc[i,'x'] = (electrodeCoordsDF.loc[elecInd,'xDist'] + electrodeCoordsDF.loc[elecInd+1,'xDist'])/2
             else:
-                currDF.loc[i,'x'] = currDF.loc[i,'ElectrodeNo']
+                currDF.loc[i,'x'] = currDF.loc[i,'xDist']
                 
             for xT in enumerate(topoDF['xDist']):
                 if xT[1] < currDF.loc[i,'x']:
