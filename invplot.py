@@ -9,7 +9,7 @@ import pandas as pd
 import scipy.interpolate
 import matplotlib
 
-def autoplot(inv_file, iteration, return_dict=False, **kwargs):
+def autoplot(inv_file, iteration, return_dict=False, instrument='LS', **kwargs):
     """Function to run all intermedaite functions and resinv_plot to simply read and plot everything in one call.
 
     Parameters
@@ -34,8 +34,8 @@ def autoplot(inv_file, iteration, return_dict=False, **kwargs):
     else:
         inv_file = pathlib.Path(inv_file)
 
-    inv_dict = ingest_inv(inv_file, verbose=False, show_iterations=False)
-    inv_dict = read_inv_data(inv_file=inv_file, inv_dict=inv_dict)
+    inv_dict = ingest_inv(inv_file, verbose=False, instrument=instrument, show_iterations=False)
+    inv_dict = read_inv_data(inv_file=inv_file, instrument=instrument, inv_dict=inv_dict)
 
     allIterList = [':', 'all']
     if type(iteration) is int:
@@ -91,7 +91,7 @@ def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel
 
     Parameters
     ----------
-    inv_dict : dict
+    inv_dict : dict 
         Dictionary of inversion results generated from previous steps
     colMap : str, optional
         Colormap, any acceptable from matplotlib, by default 'nipy_spectral'
@@ -269,7 +269,7 @@ def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel
     return f, a
 
 #Function to ingest inv file and find key information for later
-def ingest_inv(inv_file, verbose=True, show_iterations=True):
+def ingest_inv(inv_file, instrument='LS', verbose=True, show_iterations=True):
     """Function to ingest inversion file and get key points (row numbers) in the file
 
     Parameters
@@ -297,65 +297,62 @@ def ingest_inv(inv_file, verbose=True, show_iterations=True):
     layerDepths = []
     noLayerRow = -1
     blockRow = -1
+    layerRow = -1
     layerInfoRow = -1
     resistDF = pd.DataFrame()
+    dataList = []
     noPoints = []
     calcResistivityRowList = []
     refResistRow=-1
     topoDataRow = -1
     iterationsInfoRow = -1
 
-    inv_dict = {
-        'inv_file_Path':inv_file,
-        'fileHeader':fileHeader,
-        'iterationStartRowList':iterationStartRowList,
-        'layerRowList':layerRowList, 
-        'layerDepths':layerDepths
-        }
+    global lsList
+    global sasList
 
-    inv_dict['headerOrder'] = []
-    headerIndex = 0 
-    layerNo = 0
+    lsList = ['terrameter ls', 'ls', 'terrameter', 'abem'] #Default, since it is current standard
+    sasList= ['sas', '4000', 'terrameter sas4000', 'terrameter sas 4000']
+
     with open(str(inv_file)) as datafile: 
         filereader = csv.reader(datafile)
         for row in enumerate(filereader):
             startLayer = 0
             endLayer = 0
             lay = -1
+            #print(row[0])
+            global fileHeaderRows
+            if instrument.lower() in sasList:
+                fileHeaderRows = 5
+                keyList=['Name', 'NomElectrodeSpacing', 'ArrayCode', 'NoDataPoints','DistanceType', 'FinalFlag']
+            else:
+                fileHeaderRows = 8
+                keyList=['Name', 'NomElectrodeSpacing', 'ArrayCode', 'ProtocolCode', 'MeasureHeader', 'MeasureType', 'NoDataPoints','DistanceType','FinalFlag']
 
-            if row[0] <= 8:
+            if row[0] <= fileHeaderRows:
                 if len(row[1])>1:
                     fileHeader.append(row[1][0]+', '+row[1][1])
                     continue
                 else:
                     fileHeader.append(row[1][0].strip())
                     continue
-                
+            
             if 'NUMBER OF LAYERS' in str(row[1]):
                 noLayerRow = row[0]+1
-                inv_dict['noLayerRow'] = noLayerRow
-                inv_dict['headerOrder'].append('NUMBER OF LAYERS')
                 continue
-
             if row[0] == noLayerRow:
                 noLayers = int(row[1][0])
-                inv_dict['noLayers'] = noLayers
                 layerList = np.linspace(1,noLayers, noLayers)
                 continue
             
             if 'NUMBER OF BLOCKS' in str(row[1]):
                 blockRow = row[0]+1
-                inv_dict['blockRow'] = blockRow
-                inv_dict['headerOrder'].append('NUMBER OF BLOCKS')
                 continue
             if row[0]==blockRow:
                 noBlocks = int(row[1][0])
-                inv_dict['noLayerRow'] = noBlocks
                 continue
 
             if 'ITERATION' in str(row[1]):
                 iterationStartRowList.append(row[0]) #Add row of iteration to iterationStartRowList
-                inv_dict['headerOrder'].append('ITERATION')
                 continue
 
             if 'LAYER ' in str(row[1]):
@@ -365,11 +362,7 @@ def ingest_inv(inv_file, verbose=True, show_iterations=True):
                 else:
                     layerRowList[iterInd].append(row[0])
                 layerInfoRow = row[0]+1
-                inv_dict['layerInfoRow'] = layerInfoRow
-                inv_dict['headerOrder'].append('LAYER {}'.format(layerNo))
-                layerNo += 1
                 continue
-
             if row[0]==layerInfoRow:
                 noPoints.append(int(row[1][0].strip()))
                 layerDepths.append(row[1][1].strip())
@@ -377,96 +370,63 @@ def ingest_inv(inv_file, verbose=True, show_iterations=True):
             
             if 'CALCULATED APPARENT RESISTIVITY' in str(row[1]):
                 calcResistivityRowList.append(row[0])
-                inv_dict['headerOrder'].append('CALCULATED APPARENT RESISTIVITY')
                 continue
             
             if 'Reference resistivity is' in str(row[1]):
                 refResistRow = row[0]+1 
-                inv_dict['refResistRow'] = refResistRow
-                inv_dict['headerOrder'].append('Reference resistivity')
                 continue
             
             if row[0]==refResistRow:
+                #NOT CURRENTLY USED
                 refResist = float(row[1][0].strip())
-                inv_dict['refResist'] = refResist
                 continue
             
             if 'TOPOGRAPHICAL DATA' in str(row[1]):
                 topoDataRow = row[0]
-                inv_dict['topoDataRow'] = topoDataRow
-                inv_dict['headerOrder'].append('TOPOGRAPHICAL DATA')
                 continue
             if row[0]==topoDataRow+2:
                 noTopoPts = int(row[1][0].strip())
-                inv_dict['noTopoPts'] = noTopoPts
                 continue
 
             if 'COORDINATES FOR ELECTRODES' in str(row[1]):
                 electrodeCoordsRow = row[0]
-                inv_dict['electrodeCoordsRow'] = electrodeCoordsRow
-                inv_dict['headerOrder'].append('COORDINATES FOR ELECTRODES')
                 continue
 
             if 'Shift matrix' in str(row[1]):
                 shiftMatrixRow = row[0]
-                inv_dict['shiftMatrixRow'] = shiftMatrixRow
-                inv_dict['headerOrder'].append('Shift matrix')
                 continue
 
-            if 'Blocks sensitivity' in str(row[1]):
+            if 'Blocks sensitivity and uncertainity values (with smoothness constrain)' in str(row[1]):
                 sensAndUncertainRow = row[0]
-                inv_dict['sensAndUncertainRow'] = sensAndUncertainRow
-                inv_dict['headerOrder'].append('Blocks sensitivity')
                 continue
 
             if 'Error Distribution' in str(row[1]):
                 errorDistRow = row[0] #no of data points
-                inv_dict['errorDistRow'] = errorDistRow
-                inv_dict['headerOrder'].append('Error Distribution')
                 continue
 
             if 'Total Time' in str(row[1]):
                 iterationsInfoRow=row[0]
                 iterDataList = []
-                inv_dict['iterationsInfoRow'] = iterationsInfoRow
-                inv_dict['headerOrder'].append('Total Time')
                 continue
             
             if iterationsInfoRow > 1:
                 if row[1] == []:
                     print('   ')
                     noIterations = row[0]-iterationsInfoRow-1
-                    inv_dict['noIterations'] = noIterations
                     break
                 iterDataList.append(row[1][0].split())
-
-    #After loop, fill in dict entries
-    inv_dict['calcResistivityRowList'] = calcResistivityRowList
-    inv_dict['iterDataList'] = iterDataList
-    inv_dict['layerRowList']= layerRowList
-    inv_dict['iterationStartRowList']= iterationStartRowList
-
 
     layerDepths = layerDepths[0:noLayers]
     layerDepths[noLayers-1] = float(layerDepths[(noLayers-2)])+(float(layerDepths[noLayers-2])-float(layerDepths[noLayers-3]))
     layerDepths = [float(x) for x in layerDepths]
-    inv_dict['layerDepths'] = layerDepths
 
     noPoints = noPoints[0:noLayers]
-    inv_dict['noPoints'] = noPoints
-
-    keyList=['Name', 'NomElectrodeSpacing', 'ArrayCode', 'ProtocolCode', 'MeasureHeader', 'MeasureType', 'NoDataPoints','DistanceType','FinalFlag']
 
     global fileHeaderDict
     fileHeaderDict = dict(zip(keyList, fileHeader))
-    inv_dict['fileHeaderDict'] = fileHeaderDict
-
     noDataPoints = int(fileHeaderDict['NoDataPoints'])
-    inv_dict['noDataPoints'] = noDataPoints
-
     iterationDF = pd.DataFrame(iterDataList, columns=['Iteration',  'Time for this iteration', 'Total Time', '%AbsError'])
     iterationDF = iterationDF.apply(pd.to_numeric)
-    inv_dict['iterationDF'] = iterationDF
 
     if verbose:
         print(iterationDF)
@@ -478,11 +438,39 @@ def ingest_inv(inv_file, verbose=True, show_iterations=True):
         ax1.set_xticks(np.arange(0,iterationDF['Iteration'].max()+1))
         ax1.get_legend().remove()
         plt.show(fig1)
+
+    inv_dict = {
+        'inv_file_Path':inv_file,
+        'fileHeader':fileHeader,
+        'iterationStartRowList':iterationStartRowList,
+        'layerRowList':layerRowList, 
+        'layerDepths':layerDepths,
+        'noLayerRow':noLayerRow,
+        'blockRow':blockRow ,
+        'layerRow':layerRow ,
+        'layerInfoRow':layerInfoRow ,
+        'resistDF':resistDF,
+        'dataList':dataList,
+        'noPoints':noPoints,
+        'calcResistivityRowList':calcResistivityRowList ,
+        'refResistRow':refResistRow,
+        'topoDataRow':topoDataRow,
+        'iterationsInfoRow':iterationsInfoRow,
+        'iterationDF':iterationDF,
+        'noIterations':noIterations,
+        'noDataPoints':noDataPoints,
+        'shiftMatrixRow':shiftMatrixRow,
+        'electrodeCoordsRow':electrodeCoordsRow,
+        'noTopoPts':noTopoPts,
+        'sensAndUncertainRow':sensAndUncertainRow,
+        'noModelBlocks':[],
+        'errorDistRow':errorDistRow,
+        'fileHeaderDict':fileHeaderDict}
     
     return inv_dict
 
 #Input Data
-def read_inv_data(inv_file, inv_dict, startRow=9):
+def read_inv_data(inv_file, inv_dict, instrument='LS'):
     """Function to do initial read of .inv file. 
     
     This data does not change with iteration, as in later function. This function should be readafter ingest_inv, using the output from that as inv_dict.
@@ -495,8 +483,8 @@ def read_inv_data(inv_file, inv_dict, startRow=9):
         Filepath of .inv file
     inv_dict : dict
         Dictionary (output from ingest_inv) containing information about where data is located in the .inv file
-    startRow : int, optional
-        Where to start the read. This is, by default 9, which works well for .inv files tested.
+    instrument : str
+        Which instrument was this data acquired with (changes a few of the read parameters)
 
     Returns
     -------
@@ -509,6 +497,18 @@ def read_inv_data(inv_file, inv_dict, startRow=9):
     else:
         inv_file = pathlib.Path(inv_file)
 
+    if instrument.lower() in sasList:
+        startRow = 6
+        inDF_cols=['xDist', 'aSpacing', 'nValue', 'Data']
+        reSplitStr = ',\s+'
+    elif instrument.lower() in lsList:
+        startRow = 9
+        inDF_cols=['NoElectrodes', 'A(x)', 'A(z)', 'B(x)', 'B(z)', 'M(x)', 'M(z)', 'N(x)', 'N(z)', 'Data']
+        reSplitStr = '\s+'
+    else:
+        startRow = 9
+        
+        
     import csv
     with open(inv_file) as datafile: 
         filereader = csv.reader(datafile)
@@ -518,15 +518,41 @@ def read_inv_data(inv_file, inv_dict, startRow=9):
             if row[0] < startRow:
                 continue
             elif row[0] < startRow+noDataPoints:
-                inDataList.append(re.sub('\s+',' ',row[1][0]).split(' '))
+                if len(row[1]) == 1:
+                    inDataList.append(re.sub(reSplitStr,' ',row[1][0]).split(' '))
+                else:
+                    for i, val in enumerate(row[1]):
+                        row[1][i] = float(val.strip())
+                    inDataList.append(row[1])
             else:
                 break
     inDF = pd.DataFrame(inDataList)
     if startRow == 9:
         inDF.drop([0],inplace=True,axis=1)
     inDF.astype(np.float64)
-    inDF.columns=['NoElectrodes', 'A(x)', 'A(z)', 'B(x)', 'B(z)', 'M(x)', 'M(z)', 'N(x)', 'N(z)', 'Data']
+    inDF.columns = inDF_cols
+
+    if instrument.lower() in sasList:   
+        inDF['NoElectrodes'] = 4
+        inDF['A(x)'] = inDF['xDist'] - inDF['aSpacing']/2
+        inDF['A(z)'] = 0
+        inDF['B(x)'] = inDF['A(x)'] + inDF['aSpacing']
+        inDF['B(z)'] = 0        
+        inDF['M(x)'] = inDF['A(x)'] + inDF['aSpacing'] + (inDF['aSpacing'] * inDF['nValue']) + inDF['aSpacing']
+        inDF['M(z)'] = 0        
+        inDF['N(x)'] = inDF['A(x)'] + inDF['aSpacing'] + (inDF['aSpacing'] * inDF['nValue'])
+        inDF['N(z)'] = 0        
+
+        inDF['xDist'] = pd.concat([inDF['xDist'], 
+                                  inDF['xDist'] + inDF['aSpacing'],
+                                  inDF['xDist'] + inDF['aSpacing'] + (inDF['aSpacing'] * inDF['nValue']) + inDF['aSpacing'],
+                                  inDF['xDist'] + inDF['aSpacing'] + (inDF['aSpacing'] * inDF['nValue'])], ignore_index=True)
+        inv_dict['xDists'] = pd.DataFrame(np.sort(inDF['xDist'].unique()), columns=['xDists'])
+
+        inDF = inDF[['NoElectrodes', 'A(x)', 'A(z)', 'B(x)', 'B(z)', 'M(x)', 'M(z)', 'N(x)', 'N(z)', 'Data']]
+        
     inv_dict['resistDF']  = inDF
+    
     return inv_dict
 
 #Read other important inversion data
@@ -574,6 +600,7 @@ def read_inv_data_other(inv_file, inv_dict, iteration_no=None):
     electrodes.reset_index(inplace=True, drop=True)
     electrodes = electrodes.unique().astype(np.float32)
     inv_dict['electrodes'] = electrodes
+    #inv_dict['xDists']  = electrodes+np.diff(electrodes)/2
     
     #ElectrodeCoordinates
     if use_topo:
@@ -713,7 +740,7 @@ def map_diff(xIn, x1,x2,y1,y2):
     return yOut
 
 #Function to get resistivity model as pandas dataframe
-def get_resistivitiy_model(inv_file, inv_dict):
+def get_resistivitiy_model(inv_file, inv_dict, instrument='LS'):
     """Function to read the resistivity model, given the iteration of interest.
 
     Parameters
@@ -739,16 +766,30 @@ def get_resistivitiy_model(inv_file, inv_dict):
     for r in enumerate(layerRowList[iterationInd]):
         layerDepth = layerDepths[r[0]]
         noPtsInLyr = noPoints[r[0]]
-        currDF = pd.read_table(inv_file, skiprows=r[1]+1, nrows=noPtsInLyr,sep=',')
+        
+        currDF = pd.read_table(inv_file, skiprows=r[1]+1, nrows=noPtsInLyr, sep=',')
+        #Clean up reading of table
+
+        #Last line "x" value is blank, so make sure what is read in as x is actually data
         currDF.iloc[currDF.shape[0]-1,1] =  currDF.iloc[currDF.shape[0]-1,0]
+        #Add in an "x" value for the last point (since we're making it tabular)
         currDF.iloc[currDF.shape[0]-1,0] = currDF.iloc[currDF.shape[0]-2,0]+1
+        
+        if instrument.lower() in sasList:
+            
+            currDF.columns = ['xDist','Data']
+            
         currDF.columns=['ElectrodeNo','Data']
         currDF['zDepth'] = layerDepth
 
         for i in currDF.index:
-            lowerElecNo = currDF.loc[i,'ElectrodeNo']#-1
-            elecInd = electrodeCoordsDF.loc[electrodeCoordsDF['ElectrodeNo']==lowerElecNo].index.values[0]
-            currDF.loc[i,'x'] = (electrodeCoordsDF.loc[elecInd,'xDist'] + electrodeCoordsDF.loc[elecInd+1,'xDist'])/2
+            if instrument in lsList:
+                lowerElecNo = currDF.loc[i,'ElectrodeNo']#-1
+                elecInd = electrodeCoordsDF.loc[electrodeCoordsDF['ElectrodeNo']==lowerElecNo].index.values[0]
+                currDF.loc[i,'x'] = (electrodeCoordsDF.loc[elecInd,'xDist'] + electrodeCoordsDF.loc[elecInd+1,'xDist'])/2
+            else:
+                currDF.loc[i,'x'] = currDF.loc[i,'ElectrodeNo']
+                
             for xT in enumerate(topoDF['xDist']):
                 if xT[1] < currDF.loc[i,'x']:
                     continue
@@ -767,6 +808,7 @@ def get_resistivitiy_model(inv_file, inv_dict):
             resistModelDF.reset_index(inplace=True, drop=True)
         resistModelDF = pd.concat([resistModelDF, currDF], ignore_index=True)
         resistModelDF.reset_index(inplace=True, drop=True)
+    
     inv_dict['resistModelDF'] = resistModelDF
     return inv_dict
 
