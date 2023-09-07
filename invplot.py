@@ -3,13 +3,14 @@ import pathlib
 import re
 import sys
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.interpolate
-import matplotlib
 
-def autoplot(inv_file, iteration, return_dict=False, instrument='LS', **kwargs):
+
+def autoplot(inv_file, iteration, return_dict=False, instrument='LS', auto_shift=True, **kwargs):
     """Function to run all intermedaite functions and resinv_plot to simply read and plot everything in one call.
 
     Parameters
@@ -45,9 +46,9 @@ def autoplot(inv_file, iteration, return_dict=False, instrument='LS', **kwargs):
     elif iteration.lower() in allIterList:
         iteration = inv_dict['iterationDF'].Iteration.tolist()
 
-    resinv_params_list = ['inv_dict', 'colMap', 'cBarFormat', 'cBarLabel', 'cBarOrientation', 'cMin', 'cMax', 
-                          'griddedFt', 'griddedM', 'title', 'normType', 'primaryUnit', 'showPoints','whichTicks', 
-                          'figsize', 'dpi', 'reverse', 'tight_layout', 'savefig', 'saveformat']
+    resinv_params_list = ['inv_dict', 'colormap', 'cbar_format', 'cbar_label', 'cbar_orientation', 'cmin', 'cmax', 'auto_shift', 
+                          'grid_ft', 'grid_m', 'title', 'norm_type', 'primary_unit', 'show_points','which_ticks', 
+                          'figsize', 'dpi', 'reverse', 'tight_layout', 'save_fig', 'saveformat']
     resinv_kwargs = {}
     imshow_kwargs = {}
     for key, value in kwargs.items():
@@ -86,7 +87,9 @@ def autoplot(inv_file, iteration, return_dict=False, instrument='LS', **kwargs):
     return
 
 #Function that performs all the actual plotting
-def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel='Resistivity (ohm-m)', cBarOrientation='horizontal', cMin=None, cMax=None, griddedFt=[False,False], griddedM=[False,False], title=None, normType='log', primaryUnit='m', showPoints=False,whichTicks='major', figsize=None, dpi=None, reverse=False, tight_layout=True, savefig=False, saveformat='png', imshow_kwargs={}, **kwargs):
+def resinv_plot(inv_dict, title=None, primary_unit='m', colormap='nipy_spectral', grid_ft=[False,False], grid_m=[False,False], reverse=False, 
+                cbar_orientation='horizontal', cmin=None, cmax=None, norm_type='log', cbar_format ='%3.0f', cbar_label='Resistivity (ohm-m)',
+                auto_shift=True, show_points=False, which_ticks='major', figsize=None, dpi=None, tight_layout=True, save_fig=False, saveformat='png', imshow_kwargs={}, **kwargs):
     """Function to pull everything together and plot it nicely.
 
     It is recommended to use the autoplot function rather than resinv_plot directly, since using autoplot() incorporates all the setup needed to create the input dictionary keys/values correctly.
@@ -95,32 +98,32 @@ def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel
     ----------
     inv_dict : dict 
         Dictionary of inversion results generated from previous steps
-    colMap : str, optional
+    colormap : str, optional
         Colormap, any acceptable from matplotlib, by default 'nipy_spectral'
-    cBarFormat : str, optional
+    cbar_format : str, optional
         Format string for colorbar tick labels, by default '%3.0f'
-    cBarLabel : str, optional
+    cbar_label : str, optional
         Colorbar label, by default 'Resistivity (ohm-m)'
-    cBarOrientation : str {'horizonta', 'vertical'}, optional
+    cbar_orientation : str {'horizonta', 'vertical'}, optional
         Orientation of the colorbar, by default 'horizontal'
-    cMin : float, optional
+    cmin : float, optional
         Minimum of colorbar/colormap, by default None, which uses the minimum value of the dataset.
-    cMax : float, optional
+    cmax : float, optional
         Maximum of colorbar/colormap, by default None, which uses the maximum value of the dataset.
-    griddedFt : list, optional
+    grid_ft : list, optional
         Whether to show gridlines on the feet ticks, first position is x, second position is y, by default [False,False]
-    griddedM : list, optional
+    grid_m : list, optional
         Whether to show gridlines on the meter tickes, first position is x, second posistion is y, by default [False,False]
     title : str, optional
         String to show as the title, if desired to set manually, by default None, which shows the filename as the title
-    normType : str {'log', 'linear'}, optional
+    norm_type : str {'log', 'linear'}, optional
         Normalization type, by default 'log'. Determines whether matplotlib.colors.LogNorm or matplotlib.colors.Normalize is used for colormap.
-    primaryUnit : str {'m', 'ft'}, optional
+    primary_unit : str {'m', 'ft'}, optional
         Whether to display meters or feet as primary unit (this determines which unit is larger on the axis and is on the left and top), by default 'm'
-    showPoints : bool, optional
+    show_points : bool, optional
         Whether to show the datapoints used for interpolation, by default False
-    whichTicks : str {'major', 'minor', 'both'}, optional
-        If griddedFt or griddedM has any True, this determines whether major, minor, or both gridlines are used; by default 'major'.
+    which_ticks : str {'major', 'minor', 'both'}, optional
+        If grid_ft or grid_m has any True, this determines whether major, minor, or both gridlines are used; by default 'major'.
     figsize : tuple, optional
         Tuple (width, height) of the figsize, read into plt.rcParams['figure.figsize'], by default None.
     dpi : int or float, optional
@@ -129,10 +132,12 @@ def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel
         Whether to display the data in reverse (flipped along x) of what is read into from .inv file, by default False
     tight_layout : bool, optional
         If true, calls fig.tight_layout(). Otherwise, tries to maximize space on the figure using plt.subplots_adjust, by default True
-    savefig : bool, optional
+    save_fig : bool, optional
         If False, will not save figure. Otherwise, calls plt.savefig() and the value of this parameter will be used as the output filepath, by default False.
     saveformat : str, optional
         Read into plt.savefig(format) paramater, by default 'png'.
+    auto_shift : bool, default=True
+        Whether to automatically shift the xDistances so the first one is at 0
     **imshow_kwargs
         Any extra specified keyword arguments are passed directly to matplotlib.pyplot.imshow
 
@@ -141,6 +146,17 @@ def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel
     dict
         Returns existing inv_dict input, but with added keys of ['fig'] and ['ax'] containing a list of the fig and ax objects (list, since multiple iterations can be done at once)
     """
+    #First get the data we'll need for the plot
+    x = inv_dict['resistModelDF']['x'].copy().astype(np.float32)
+    z = inv_dict['resistModelDF']['zElev'].copy().astype(np.float32)
+    v = inv_dict['resistModelDF']['Data'].copy().astype(np.float32)
+
+    if auto_shift:
+        minXVal = min(x)
+        x = x - minXVal
+        inv_dict['topoDF']['xDist'] = inv_dict['topoDF']['xDist'] - minXVal
+
+    #Setup plot parameters next
     if title is None:
         title = inv_dict['inv_file_Path'].stem
     
@@ -148,10 +164,6 @@ def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel
         inv_dict['figure.dpi'] = 250
     if 'figure.figsize' not in list(inv_dict.keys()):
         inv_dict['figure.figsize'] = (12,5)
-
-    x = inv_dict['resistModelDF']['x'].copy()
-    z = inv_dict['resistModelDF']['zElev'].copy()
-    v = inv_dict['resistModelDF']['Data'].copy()
 
     if figsize is None:
         plt.rcParams['figure.figsize'] = inv_dict['figure.figsize']
@@ -167,16 +179,16 @@ def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel
     
     maxXDist = max(np.float_(inv_dict['electrodes']))
 
-    if cMin is None:
-        cMin = inv_dict['resistModelDF']['Data'].min()
-    if cMax is None:
-        cMax = inv_dict['resistModelDF']['Data'].max()
+    if cmin is None:
+        cmin = inv_dict['resistModelDF']['Data'].min()
+    if cmax is None:
+        cmax = inv_dict['resistModelDF']['Data'].max()
     
+    #Convert data values to absolute values of float (need to remove abs()?)
+    for i, val in enumerate(v):
+        v[i] = abs(float(val))
 
-    for i in enumerate(v):
-        v[i[0]] = abs(float(i[1]))
-
-    xi, zi = np.linspace(min(x), max(x), int(max(x))), np.linspace(min(z), max(z), int(max(z)))
+    xi, zi = np.linspace(min(x), max(x), int(max(x))), np.linspace(min(z), max(z), int(max(abs(z))))
     xi, zi = np.meshgrid(xi, zi)
 
     vi = scipy.interpolate.griddata((x, z), v, (xi, zi))#, method='linear')
@@ -196,17 +208,17 @@ def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel
     minz = min(z)
     maxz = max(z)
 
-    vmax = cMax
-    vmin = cMin
+    vmax = cmax
+    vmin = cmin
 
-    #if cMax >= resistModelDF['Data'].max():
+    #if cmax >= resistModelDF['Data'].max():
     #  vmax = vmax98
     #else:
-    #  vmax = cMax
-    #if cMin <= resistModelDF['Data'].min():
+    #  vmax = cmax
+    #if cmin <= resistModelDF['Data'].min():
     #  vmin = vmin2
     #else:
-    #  vmin = cMin
+    #  vmin = cmin
     #cbarTicks = np.arange(np.round(vmin,-1),np.round(vmax-1)+1,10) 
 
     arStep = np.round((vmax-vmin)/10,-1)
@@ -216,11 +228,11 @@ def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel
     if 'norm' in imshow_kwargs.keys():
         norm = imshow_kwargs['norm']
     else:
-        if normType=='log':
+        if norm_type=='log':
             if vmin <= 0:
                 vmin = 0.1
             norm = matplotlib.colors.LogNorm(vmin = vmin, vmax = vmax)
-            #cBarFormat = '%.1e'
+            #cbar_format = '%.1e'
             #cbarTicks = np.logspace(np.log10(vmin),np.log10(vmax),num=10)
         else:
             norm = matplotlib.colors.Normalize(vmin = vmin, vmax = vmax)
@@ -242,7 +254,7 @@ def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel
         cmap = imshow_kwargs['cmap']
         imshow_kwargs.pop('cmap', None)
     else:
-        cmap=colMap   
+        cmap=colormap   
         
     if 'interpolation' in imshow_kwargs.keys():
         interp = imshow_kwargs['interpolation']
@@ -258,14 +270,14 @@ def resinv_plot(inv_dict, colMap='nipy_spectral', cBarFormat ='%3.0f', cBarLabel
                 cmap =cmap,
                 norm = norm,
                 interpolation=interp, **imshow_kwargs)
-    f, a = __plot_pretty(inv_dict, x,z,v,fig=fig,im=im,ax=axes,colMap=colMap,cMin=cMin,cMax=cMax, 
-                       gridM=griddedM, gridFt=griddedFt, primaryUnit=primaryUnit, t=title, tight_layout=tight_layout,
-                       cbarTicks=cbarTicks,cBarFormat=cBarFormat,cBarLabel=cBarLabel,cBarOrient=cBarOrientation,
-                       showPoints=showPoints, norm=norm, whichTicks=whichTicks, reverse=reverse)
+    f, a = __plot_pretty(inv_dict, x,z,v,fig=fig,im=im,ax=axes,colormap=colormap,cmin=cmin,cmax=cmax, 
+                       gridM=grid_m, gridFt=grid_ft, primary_unit=primary_unit, t=title, tight_layout=tight_layout,
+                       cbarTicks=cbarTicks,cbar_format=cbar_format,cbar_label=cbar_label,cBarOrient=cbar_orientation,
+                       show_points=show_points, norm=norm, which_ticks=which_ticks, reverse=reverse)
 
-    plt.show(fig)
-    if savefig is not False:
-        plt.savefig(savefig, format=saveformat, facecolor='white')
+    plt.show()
+    if save_fig is not False:
+        f.savefig(save_fig, format=saveformat, facecolor='white')
 
     plt.close(f)
     return f, a
@@ -316,6 +328,15 @@ def ingest_inv(inv_file, instrument='LS', verbose=True, show_iterations=True):
     sasList= ['sas', '4000', 'terrameter sas4000', 'terrameter sas 4000']
 
     with open(str(inv_file)) as datafile: 
+        #These may not be present without topography, initialize as None
+        topoDataRow=None
+        shiftMatrixRow=None
+        electrodeCoordsRow=None
+        noTopoPts=None
+
+        #If not sensitivity or uncertainty calculated
+        sensAndUncertainRow=None
+
         filereader = csv.reader(datafile)
         for row in enumerate(filereader):
             startLayer = 0
@@ -386,9 +407,10 @@ def ingest_inv(inv_file, instrument='LS', verbose=True, show_iterations=True):
             if 'TOPOGRAPHICAL DATA' in str(row[1]):
                 topoDataRow = row[0]
                 continue
-            if row[0]==topoDataRow+2:
-                noTopoPts = int(row[1][0].strip())
-                continue
+            if topoDataRow is not None:
+                if row[0]==topoDataRow+2:
+                    noTopoPts = int(row[1][0].strip())
+                    continue
 
             if 'COORDINATES FOR ELECTRODES' in str(row[1]):
                 electrodeCoordsRow = row[0]
@@ -469,6 +491,11 @@ def ingest_inv(inv_file, instrument='LS', verbose=True, show_iterations=True):
         'errorDistRow':errorDistRow,
         'fileHeaderDict':fileHeaderDict}
     
+    global use_topo
+    if topoDataRow is None:
+        use_topo=False
+    else:
+        use_topo=True
     return inv_dict
 
 #Input Data
@@ -536,6 +563,22 @@ def read_inv_data(inv_file, inv_dict, instrument='LS'):
         inDF = inDF.loc[:,0:10]
     inDF.replace(r'^\s*$', np.nan, regex=True, inplace=True)
     inDF.astype(np.float64)
+    
+    #Same older inv files have 3 columns only
+    if inDF.shape[1] == 3:
+        inDF.columns = ['xDist', 'aTimesN', 'Data']
+        minASpacing = inDF['aTimesN'].min()   
+        #minASpacing = inv_dict['fileHeaderDict']['NomElectrodeSpacing']
+        
+        inDF['aSpacing'] = minASpacing #Start with assumption that all are minASpacing
+        
+        for i in range(2,50):
+            inDF['nValue'] = inDF['aTimesN'] / inDF['aSpacing']
+            inDF['nTooBig'] = inDF['nValue'] >= 14 #Arbitrarily using value as the largest n value
+            if inDF['nTooBig'].sum() == 0:
+                break
+            inDF.loc[inDF['nTooBig'] == True, 'aSpacing'] *= i #Wherever nTooBig, make aSpacing larger x2   
+        inDF_cols = ['xDist', 'aTimesN', 'Data', 'aSpacing', 'nValue', 'nTooBig']
     inDF.columns = inDF_cols
 
     if instrument.lower() in sasList:   
@@ -556,9 +599,8 @@ def read_inv_data(inv_file, inv_dict, instrument='LS'):
         inv_dict['xDists'] = pd.DataFrame(np.sort(inDF['xDist'].unique()), columns=['xDists'])
 
         inDF = inDF[['NoElectrodes', 'A(x)', 'A(z)', 'B(x)', 'B(z)', 'M(x)', 'M(z)', 'N(x)', 'N(z)', 'Data']]
-        
+    
     inv_dict['resistDF']  = inDF
-
     return inv_dict
 
 #Read other important inversion data
@@ -591,14 +633,14 @@ def read_inv_data_other(inv_file, inv_dict, iteration_no=None):
     layerRowList = inv_dict['layerRowList']
     noPoints = inv_dict['noPoints']
     layerDepths = inv_dict['layerDepths']
-    if 'shiftMatrixRow' in inv_dict.keys():
+
+    #shiftMatrixRow = None
+    if use_topo: #inv_dict['shiftMatrixRow'] is not None:
         shiftMatrixRow = inv_dict['shiftMatrixRow']
         electrodeCoordsRow = inv_dict['electrodeCoordsRow']
         topoDataRow = inv_dict['topoDataRow']
         noTopoPts = inv_dict['noTopoPts']
-        use_topo=True
-    else:
-        use_topo=False
+    
     sensAndUncertainRow = inv_dict['sensAndUncertainRow']
 
     #Get Electrodes
@@ -610,7 +652,11 @@ def read_inv_data_other(inv_file, inv_dict, iteration_no=None):
     
     #ElectrodeCoordinates
     if use_topo:
-        noModelElects = shiftMatrixRow-electrodeCoordsRow-1
+        if shiftMatrixRow is not None:
+            noModelElects = shiftMatrixRow-electrodeCoordsRow-1
+        else:
+            noModelElects = sensAndUncertainRow-electrodeCoordsRow-1
+            
         electrodeCoordsDF = pd.read_table(inv_file,skiprows=electrodeCoordsRow,nrows=noModelElects, sep='\s+')
         electrodeCoordsDF.dropna(axis=1,inplace=True)
         electrodeCoordsDF.columns=['xDist','RelElevation']
@@ -650,17 +696,24 @@ def read_inv_data_other(inv_file, inv_dict, iteration_no=None):
 
     #Shift Matrix
     if use_topo:
-        shiftMatrixDF = pd.read_table(inv_file,skiprows=shiftMatrixRow+1,nrows=noModelElects, sep='\s+',header=None,index_col=0)
-        shiftMatrixDF.dropna(axis=1,inplace=True)
-        for c in shiftMatrixDF:
-            shiftMatrixDF.rename(columns={c:'Layer'+str(int(c)-1)},inplace=True)
-        inv_dict['shiftMatrixDF'] = shiftMatrixDF #Not currently using this
+        if shiftMatrixRow is not None:
+            shiftMatrixDF = pd.read_table(inv_file,skiprows=shiftMatrixRow+1,nrows=noModelElects, sep='\s+',header=None,index_col=0)
+            shiftMatrixDF.dropna(axis=1,inplace=True)
+            for c in shiftMatrixDF:
+                shiftMatrixDF.rename(columns={c:'Layer'+str(int(c)-1)},inplace=True)
+            inv_dict['shiftMatrixDF'] = shiftMatrixDF #Not currently using this
+        else:
+            #since shiftMatrixDF is not currently being used, maybe don't need to worry about this?
+            pass
 
     #Sensitivity
-    sensDF = pd.read_table(inv_file,skiprows=sensAndUncertainRow+3,nrows=noModelBlocks, sep='\s+',header=None,index_col=0)
-    sensDF.dropna(axis=1,inplace=True)
-    sensDF.reset_index(inplace=True)
-    sensDF.columns=['BlockNo','Sensitivity', '%ApproxUncertainty']
+    if sensAndUncertainRow is not None:
+        sensDF = pd.read_table(inv_file,skiprows=sensAndUncertainRow+3,nrows=noModelBlocks, sep='\s+',header=None,index_col=0)
+        sensDF.dropna(axis=1,inplace=True)
+        sensDF.reset_index(inplace=True)
+        sensDF.columns=['BlockNo','Sensitivity', '%ApproxUncertainty']
+    else:
+        sensDF = pd.DataFrame()
     inv_dict['sensDF'] = sensDF
 
     return inv_dict
@@ -818,7 +871,7 @@ def get_resistivitiy_model(inv_file, inv_dict, instrument='LS'):
     return inv_dict
 
 #Helper function for __plot_pretty
-def __label_plot(fig, ax, gridM, gridFt, whichTicks, pUnit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims, yLims, t):
+def __label_plot(fig, ax, gridM, gridFt, which_ticks, pUnit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims, yLims, t):
     """See __plot_pretty, as all input parameters are derived from there"""
     #matplotlib.rc('font', family='sans-serif')   
     #matplotlib.rc('font', serif='Helvetica') 
@@ -855,32 +908,32 @@ def __label_plot(fig, ax, gridM, gridFt, whichTicks, pUnit, pUnitXLocs, pUnitYLo
 
     if pUnit=='m':
         if gridM[0]:
-           ax2.grid(axis='x',alpha=0.5, c='k', which=whichTicks)
+           ax2.grid(axis='x',alpha=0.5, c='k', which=which_ticks)
         if gridM[1]:
-            ax.grid(axis='y',alpha=0.5, c='k', which=whichTicks)
+            ax.grid(axis='y',alpha=0.5, c='k', which=which_ticks)
         if gridFt[0]:
-            ax.grid(axis='x',alpha=0.5, c='k', which=whichTicks)
+            ax.grid(axis='x',alpha=0.5, c='k', which=which_ticks)
         if gridFt[1]:
-            ax3.grid(axis='y',alpha=0.5, c='k', which=whichTicks)
+            ax3.grid(axis='y',alpha=0.5, c='k', which=which_ticks)
     else:
         if gridFt[0]:
-            ax2.grid(axis='x',alpha=0.5, c='k', which=whichTicks)
+            ax2.grid(axis='x',alpha=0.5, c='k', which=which_ticks)
         if gridFt[1]:
-            ax.grid(axis='y',alpha=0.5, c='k', which=whichTicks)
+            ax.grid(axis='y',alpha=0.5, c='k', which=which_ticks)
         if gridM[0]:
-            ax.grid(axis='x',alpha=0.5, c='k', which=whichTicks)
+            ax.grid(axis='x',alpha=0.5, c='k', which=which_ticks)
         if gridM[1]:
-            ax3.grid(axis='y',alpha=0.5, c='k', which=whichTicks)
+            ax3.grid(axis='y',alpha=0.5, c='k', which=which_ticks)
 
 #Helper function for resinv_plot
-def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colMap='nipy_spectral',cMin=None,cMax=None, gridFt=[False,False], gridM=[False,False], t='', primaryUnit='m', tight_layout=True, cBarOrient='vertical', cBarFormat ='%3.0f',cBarLabel ='Resistivity (ohm-m)', showPoints=False, norm=0, whichTicks='major', reverse=False):
+def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colormap='nipy_spectral',cmin=None,cmax=None, gridFt=[False,False], gridM=[False,False], t='', primary_unit='m', tight_layout=True, cBarOrient='vertical', cbar_format ='%3.0f',cbar_label ='Resistivity (ohm-m)', show_points=False, norm=0, which_ticks='major', reverse=False):
     """Helper function for resinv_plot, parameters derived from there."""
 
     topoDF = inv_dict['topoDF']
-    if cMin is None:
-        cMin = inv_dict['resistModelDF']['Data'].min()
-    if cMax is None:
-        cMax = inv_dict['resistModelDF']['Data'].max()
+    if cmin is None:
+        cmin = inv_dict['resistModelDF']['Data'].min()
+    if cmax is None:
+        cmax = inv_dict['resistModelDF']['Data'].max()
     
     plt.rcParams["figure.dpi"] = 300  
     plt.rcParams['xtick.bottom'] = plt.rcParams['xtick.labelbottom'] = False
@@ -892,8 +945,8 @@ def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colMap='nipy_spectral',cM
     vmin2 = np.percentile(v, 2)
     vmax = v.max()
     vmin = v.min()
-    minx = topoDF['xDist'].min()
-    maxx = topoDF['xDist'].max()
+    minx = min(x)#topoDF['xDist'].min()
+    maxx = max(x)#topoDF['xDist'].max()
     minz = min(z)
     maxz = max(z)
 
@@ -945,8 +998,8 @@ def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colMap='nipy_spectral',cM
     ax.fill_between(topoDF['xDist'],topoDF['Elevation'],topoDF['Elevation']+10,color='w')
     ax.plot(topoDF['xDist'],topoDF['Elevation'],color='k',linewidth=1)
     ax.scatter(topoDF['xDist'],topoDF['Elevation'],marker='v',edgecolors='w',color='k',s=30)
-    if showPoints:
-        plt.scatter(x,z, c=v, marker='.', cmap='nipy_spectral', norm=norm)
+    if show_points:
+        plt.scatter(x,z, c=v, marker='.', cmap=colormap, norm=norm)
 
     xLimsM = [minx,maxx]
     xLimsFt = [np.round(xLimsM[0]*3.2808399, 0), np.round(xLimsM[1]*3.2808399, 0)]
@@ -957,7 +1010,7 @@ def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colMap='nipy_spectral',cM
         #xLocs_FTinM=np.flip(xLocs_FTinM)
 
 
-    if primaryUnit in ['m', 'meters', 'meter', 'metres', 'metre', 'metric']:
+    if primary_unit in ['m', 'meters', 'meter', 'metres', 'metre', 'metric']:
         pUnit = 'm'
         pUnitXLocs = xlocsM
         pUnitYLocs = ylocsM
@@ -969,9 +1022,9 @@ def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colMap='nipy_spectral',cM
         sUnitYLocs = yLocs_FTinM
         sUnitXLabels = xLabelsFtEven
         sUnitYLabels = yLabelsFtEven
-        __label_plot(fig, ax, gridM, gridFt, whichTicks, primaryUnit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims=xLimsM, yLims=yLimsM, t=t)
+        __label_plot(fig, ax, gridM, gridFt, which_ticks, primary_unit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims=xLimsM, yLims=yLimsM, t=t)
     
-    elif primaryUnit in ['f', 'ft', 'feet', 'foot', 'US']:
+    elif primary_unit in ['f', 'ft', 'feet', 'foot', 'US']:
         pUnit = 'ft'
         pUnitXLocs = xLocs_FTinM
         pUnitYLocs = yLocs_FTinM
@@ -983,7 +1036,7 @@ def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colMap='nipy_spectral',cM
         sUnitYLocs = ylocsM
         sUnitXLabels = xlabelsM
         sUnitYLabels = ylabelsM
-        __label_plot(fig, ax, gridM, gridFt, whichTicks, primaryUnit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims=xLimsM, yLims=yLimsM, t=t)  
+        __label_plot(fig, ax, gridM, gridFt, which_ticks, primary_unit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims=xLimsM, yLims=yLimsM, t=t)  
     
     else:
         pUnit = 'm'
@@ -997,7 +1050,7 @@ def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colMap='nipy_spectral',cM
         sUnitYLocs = yLocs_FTinM
         sUnitXLabels = xLabelsFtEven
         sUnitYLabels = yLabelsFtEven
-        __label_plot(fig, ax, gridM, gridFt, whichTicks, primaryUnit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims=xLimsM, yLims=yLimsM, t=t)
+        __label_plot(fig, ax, gridM, gridFt, which_ticks, primary_unit, pUnitXLocs, pUnitYLocs, pUnitXLabels,pUnitYLabels, sUnit, sUnitXLocs, sUnitYLocs, sUnitXLabels, sUnitYLabels, xLims=xLimsM, yLims=yLimsM, t=t)
     
     if tight_layout:
         fig.tight_layout()
@@ -1009,9 +1062,9 @@ def __plot_pretty(inv_dict, x,z,v,im,cbarTicks,fig,ax, colMap='nipy_spectral',cM
         aspect=50
     else:
         aspect=25
-    cbar = fig.colorbar(im, ax=ax,orientation=cBarOrient, aspect=aspect, extend='both',ticks=cbarTicks,format=cBarFormat)
+    cbar = fig.colorbar(im, ax=ax,orientation=cBarOrient, aspect=aspect, extend='both',ticks=cbarTicks,format=cbar_format)
     cbar.ax.tick_params(labelsize=12)#set_ticks(cbarTicks)
-    cbar.set_label(label=cBarLabel, size=16)
+    cbar.set_label(label=cbar_label, size=16)
 
     ax_h, ax_w = ax.bbox.height, ax.bbox.width
     axRatio = ax_w/ax_h
