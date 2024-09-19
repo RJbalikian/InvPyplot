@@ -177,7 +177,7 @@ def resinv_plot(inv_dict, title=None, primary_unit='m', colormap='nipy_spectral'
         inv_dict['figure.dpi'] = dpi
         plt.rcParams['figure.dpi'] = dpi
     
-    maxXDist = max(np.float_(inv_dict['electrodes']))
+    maxXDist = max(np.float64(inv_dict['electrodes']))
 
     if cmin is None:
         cmin = inv_dict['resistModelDF']['Data'].min()
